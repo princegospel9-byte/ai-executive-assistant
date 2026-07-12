@@ -1,0 +1,46 @@
+{
+  "name": "Testing - Error Handling",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "95e451dc-803d-47d9-b98a-688ee39b1b54",
+      "name": "Run Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "throw new Error('This is a deliberate test failure. If Core - Error Handler is correctly set as this workflow\\'s Error Workflow, you should see: (1) this execution marked failed in n8n, (2) a new row in automation_runs with status=failed, (3) a critical notification appear.');"
+      },
+      "id": "db0d4fe9-5010-4c6e-a280-0d525d8097e7",
+      "name": "Deliberately Fail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "content": "This workflow is SUPPOSED to fail every time you run it - that's the test.\n\nBefore running: open Settings (top right) and set Core - Error Handler as the Error Workflow.\n\nA successful test looks like: this execution shows red/failed in n8n, a new row appears in automation_runs with status=failed, and a critical notification appears.",
+        "height": 220,
+        "width": 320
+      },
+      "id": "bf9b79f2-0c95-497b-ae8f-ec29a2d89992",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 180]
+    }
+  ],
+  "connections": {
+    "Run Test": {
+      "main": [[{ "node": "Deliberately Fail", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

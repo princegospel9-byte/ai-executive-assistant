@@ -1,0 +1,120 @@
+{
+  "name": "Core - Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "51cd95eb-c085-43e6-a731-b3f93531e352",
+      "name": "On Any Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-1000, 0],
+      "notes": "Set this workflow as the 'Error Workflow' in the Settings of every other workflow. n8n calls it automatically on unhandled failure - it only receives workflow name + error message, never the failed workflow's own data."
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.first().json;\nreturn [{\n  json: {\n    workflow_name: e.workflow?.name || 'unknown',\n    error_message: e.execution?.error?.message || 'Unknown error',\n    n8n_execution_id: e.execution?.id || null,\n    last_node_executed: e.execution?.lastNodeExecuted || null,\n    started_at: new Date().toISOString(),\n    status: 'failed'\n  }\n}];"
+      },
+      "id": "03216293-50da-4532-a8ee-efebc49c164e",
+      "name": "Extract Error Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, 0]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Core - Log Execution"
+        },
+        "options": {}
+      },
+      "id": "23097426-9781-47e5-a26a-c603b14c9d8d",
+      "name": "Log The Failure",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e31464b3-dfa0-4304-80c9-470d97b9488b",
+      "name": "Get Primary User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Single-user simplification: notifies the first profile found. Once this platform has more than one real user, this needs to know WHICH user's workflow actually failed - not in scope for the generic n8n Error Trigger, which carries no business context. Revisit if/when this becomes multi-tenant."
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $input.first().json[0];\nconst errorInfo = $('Extract Error Info').first().json;\nreturn [{\n  json: {\n    user_id: user?.id,\n    title: `Workflow failed: ${errorInfo.workflow_name}`,\n    message: errorInfo.error_message,\n    severity: 'critical',\n    channel: 'in_app',\n    related_record_type: 'automation_run'\n  }\n}];"
+      },
+      "id": "9728f440-00e9-43ec-ad3f-885ff4631747",
+      "name": "Build Notification Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Notifications - Send Notification"
+        },
+        "options": {}
+      },
+      "id": "b6cea882-33fe-4527-84d4-091751cf2427",
+      "name": "Notify User",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    }
+  ],
+  "connections": {
+    "On Any Workflow Error": {
+      "main": [[{ "node": "Extract Error Info", "type": "main", "index": 0 }]]
+    },
+    "Extract Error Info": {
+      "main": [[{ "node": "Log The Failure", "type": "main", "index": 0 }]]
+    },
+    "Log The Failure": {
+      "main": [[{ "node": "Get Primary User", "type": "main", "index": 0 }]]
+    },
+    "Get Primary User": {
+      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Notification Payload": {
+      "main": [[{ "node": "Notify User", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

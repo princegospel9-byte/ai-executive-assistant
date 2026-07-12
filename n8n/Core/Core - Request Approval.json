@@ -1,0 +1,182 @@
+{
+  "name": "Core - Request Approval",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "5d118b12-57a1-4c9b-b256-264a943ad3c8",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-1200, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "action_type", "value": "=eq.{{ $json.action_type }}" },
+            { "name": "related_record_id", "value": "=eq.{{ $json.related_record_id }}" },
+            { "name": "status", "value": "eq.pending" },
+            { "name": "select", "value": "id" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "41ffd93c-99a8-490f-abf5-c57727315832",
+      "name": "Check Existing Pending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1000, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c0bdc32e-0d2b-41e1-ac4b-14377c1e4d8d",
+      "name": "Already Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-800, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const existing = $input.first().json;\nreturn [{ json: { approval_id: existing[0]?.id ?? existing.id, created: false } }];"
+      },
+      "id": "7b4fa991-b34a-4286-bb84-c3228d075cdc",
+      "name": "Use Existing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, action_type: $json.action_type, payload: $json.payload, related_record_type: $json.related_record_type || null, related_record_id: $json.related_record_id || null }) }}",
+        "options": {}
+      },
+      "id": "994edc5b-be17-4872-8438-4f322d8894e3",
+      "name": "Insert Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, 150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst approval = Array.isArray(row) ? row[0] : row;\nreturn [{\n  json: {\n    user_id: approval.user_id,\n    title: 'Action needs your approval',\n    message: `${approval.action_type} is waiting for your review.`,\n    severity: 'info',\n    channel: 'in_app',\n    related_record_type: 'approval',\n    related_record_id: approval.id,\n    approval_id: approval.id\n  }\n}];"
+      },
+      "id": "d794eac6-012b-4103-8b9b-236994a6ee2a",
+      "name": "Build Notification Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 150]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Notifications - Send Notification"
+        },
+        "options": {}
+      },
+      "id": "ed98d6d2-a3d0-453d-829d-1c7d31d4e716",
+      "name": "Notify User",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-200, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { approval_id: $('Build Notification Payload').first().json.approval_id, created: true } }];"
+      },
+      "id": "303dead4-1b12-4084-bc7c-3199c43e91ee",
+      "name": "Use New",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 150]
+    },
+    {
+      "parameters": {},
+      "id": "f1522e32-29d3-4d1e-b9a2-694848c9e827",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [200, 0]
+    }
+  ],
+  "connections": {
+    "When Called": {
+      "main": [[{ "node": "Check Existing Pending", "type": "main", "index": 0 }]]
+    },
+    "Check Existing Pending": {
+      "main": [[{ "node": "Already Pending?", "type": "main", "index": 0 }]]
+    },
+    "Already Pending?": {
+      "main": [
+        [{ "node": "Use Existing", "type": "main", "index": 0 }],
+        [{ "node": "Insert Approval", "type": "main", "index": 0 }]
+      ]
+    },
+    "Use Existing": {
+      "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]]
+    },
+    "Insert Approval": {
+      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Notification Payload": {
+      "main": [[{ "node": "Notify User", "type": "main", "index": 0 }]]
+    },
+    "Notify User": {
+      "main": [[{ "node": "Use New", "type": "main", "index": 0 }]]
+    },
+    "Use New": {
+      "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

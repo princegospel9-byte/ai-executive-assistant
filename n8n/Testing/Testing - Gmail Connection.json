@@ -1,0 +1,43 @@
+{
+  "name": "Testing - Gmail Connection",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "ce8c7f46-e01a-46d0-9aaf-7bc4cc3a4d55",
+      "name": "Run Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {},
+      "id": "d4a304a9-9f18-4f70-b98e-d5f57d126ce6",
+      "name": "Not Yet Configured",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "content": "STUB - not functional yet.\n\nThere's no Gmail OAuth credential connected to n8n at this stage of the build (that's a Gmail Email Assistant phase task, deliberately not built now). This workflow exists so the Testing/ folder has a placeholder to build out into a real Gmail connection check once that OAuth credential exists - swap the NoOp node for a Gmail node (e.g. 'Get Labels') and check the response.",
+        "height": 240,
+        "width": 340
+      },
+      "id": "72d68aa6-de6e-4241-a746-256ca52f58f4",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 180]
+    }
+  ],
+  "connections": {
+    "Run Test": {
+      "main": [[{ "node": "Not Yet Configured", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

@@ -1,0 +1,204 @@
+{
+  "name": "AI - Process Request",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "e62bebda-85be-4ad3-a127-db66032fb262",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-1600, 0],
+      "notes": "Expected input: { prompt_key, variables: {...}, user_id, related_record_type?, related_record_id?, feature?, model?, max_tokens? }"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$input.first().json, started_at: new Date().toISOString() } }];"
+      },
+      "id": "73d45213-7fd9-49e2-a510-1cb9e03be0f0",
+      "name": "Capture Start",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1400, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/prompts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "prompt_key", "value": "=eq.{{ $json.prompt_key }}" },
+            { "name": "is_active", "value": "eq.true" },
+            { "name": "select", "value": "*" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "37e36b52-2f02-4863-bea1-c513fe0350f8",
+      "name": "Fetch Active Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const promptRow = $input.first().json[0];\nconst trigger = $('Capture Start').first().json;\nif (!promptRow) {\n  throw new Error(`No active prompt found for prompt_key: ${trigger.prompt_key}`);\n}\nconst variables = trigger.variables || {};\nfunction fill(template, vars) {\n  return template.replace(/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}/g, (match, key) => vars[key] !== undefined ? String(vars[key]) : '');\n}\nreturn [{\n  json: {\n    system_prompt: promptRow.system_prompt,\n    user_message: fill(promptRow.user_prompt_template, variables),\n    prompt_key: promptRow.prompt_key,\n    prompt_version: promptRow.version,\n    model: trigger.model || 'claude-opus-4-8',\n    max_tokens: trigger.max_tokens || 2048\n  }\n}];"
+      },
+      "id": "e3a795bb-0057-42f6-afc1-93839606c85b",
+      "name": "Fill Template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, 0],
+      "notes": "Loads the versioned prompt (step 2 of the AI orchestration pattern) and fills {{variable}} placeholders (step 1: structured input received via trigger, applied here)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $json.model, max_tokens: $json.max_tokens, system: $json.system_prompt, messages: [{ role: 'user', content: $json.user_message }] }) }}",
+        "options": {}
+      },
+      "id": "535a77f1-fdf4-4bb0-a99a-fcbfad4fa9ee",
+      "name": "Call Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-800, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Step 3 of the AI orchestration pattern. Model/max_tokens come from Fill Template so future callers can override per feature (e.g. cheaper model for simple classification)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nif (response.stop_reason === 'refusal') {\n  throw new Error('Claude refused the request: ' + (response.stop_details?.explanation || 'no explanation provided'));\n}\n\nconst textBlock = (response.content || []).find(b => b.type === 'text');\nif (!textBlock) {\n  throw new Error('Claude response contained no text content.');\n}\n\nlet output = textBlock.text;\nlet parsed = null;\ntry {\n  parsed = JSON.parse(output);\n} catch (e) {\n  // Not every prompt expects JSON (daily_briefing, knowledge_search are prose) - that's fine.\n}\n\nreturn [{\n  json: {\n    output: parsed ?? output,\n    is_structured: parsed !== null,\n    raw_text: output,\n    model: response.model,\n    input_tokens: response.usage?.input_tokens ?? null,\n    output_tokens: response.usage?.output_tokens ?? null\n  }\n}];"
+      },
+      "id": "b13ef637-86b3-43b9-9919-4c1e0d664182",
+      "name": "Validate & Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 0],
+      "notes": "Step 4: validates the response (throws - triggering the Error Workflow - on refusal or empty content). Attempts JSON parse for structured-output prompts, falls back to raw text for prose prompts."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/ai_usage_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('Capture Start').first().json.user_id, feature: $('Capture Start').first().json.feature || $('Fill Template').first().json.prompt_key, prompt_key: $('Fill Template').first().json.prompt_key, prompt_version: $('Fill Template').first().json.prompt_version, model_used: $json.model, input_tokens: $json.input_tokens, output_tokens: $json.output_tokens, related_record_type: $('Capture Start').first().json.related_record_type || null, related_record_id: $('Capture Start').first().json.related_record_id || null }) }}",
+        "options": {}
+      },
+      "id": "6fbb85fd-3369-4779-8c24-26e4c1187191",
+      "name": "Log AI Usage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "estimated_cost_usd is left null here - per-token pricing varies by model and changes over time, so cost is computed dashboard-side from model_used + token counts rather than hardcoded into this workflow."
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Capture Start').first().json;\nreturn [{\n  json: {\n    user_id: trigger.user_id,\n    workflow_name: 'AI - Process Request',\n    status: 'success',\n    started_at: trigger.started_at,\n    related_record_type: trigger.related_record_type || null,\n    related_record_id: trigger.related_record_id || null\n  }\n}];"
+      },
+      "id": "2c34b013-b3da-4ac4-bd10-859b12fcc4d7",
+      "name": "Build Log Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Core - Log Execution"
+        },
+        "options": {}
+      },
+      "id": "58ccf5ee-4852-4543-85c9-8388e5718fa8",
+      "name": "Log Execution",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const validated = $('Validate & Parse Response').first().json;\nconst filled = $('Fill Template').first().json;\nreturn [{\n  json: {\n    success: true,\n    output: validated.output,\n    is_structured: validated.is_structured,\n    prompt_key: filled.prompt_key,\n    prompt_version: filled.prompt_version,\n    usage: { input_tokens: validated.input_tokens, output_tokens: validated.output_tokens, model: validated.model }\n  }\n}];"
+      },
+      "id": "10678059-0c56-4eb1-b56e-010048554953",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "notes": "Step 6: returns structured JSON to whichever workflow called this one."
+    }
+  ],
+  "connections": {
+    "When Called": {
+      "main": [[{ "node": "Capture Start", "type": "main", "index": 0 }]]
+    },
+    "Capture Start": {
+      "main": [[{ "node": "Fetch Active Prompt", "type": "main", "index": 0 }]]
+    },
+    "Fetch Active Prompt": {
+      "main": [[{ "node": "Fill Template", "type": "main", "index": 0 }]]
+    },
+    "Fill Template": {
+      "main": [[{ "node": "Call Claude", "type": "main", "index": 0 }]]
+    },
+    "Call Claude": {
+      "main": [[{ "node": "Validate & Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Validate & Parse Response": {
+      "main": [[{ "node": "Log AI Usage", "type": "main", "index": 0 }]]
+    },
+    "Log AI Usage": {
+      "main": [[{ "node": "Build Log Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Log Payload": {
+      "main": [[{ "node": "Log Execution", "type": "main", "index": 0 }]]
+    },
+    "Log Execution": {
+      "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

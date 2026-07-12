@@ -1,0 +1,60 @@
+{
+  "name": "Testing - Claude API",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "36da0c2f-7192-4728-bb41-8115d58ed176",
+      "name": "Run Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 32, messages: [{ role: 'user', content: 'Reply with exactly the word: OK' }] }) }}",
+        "options": {}
+      },
+      "id": "f68f2561-f57b-4cf7-b171-a2f2aaf1979e",
+      "name": "Call Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 0],
+      "notes": "Uses Haiku deliberately - this test only needs to prove connectivity, not capability, so it should be the cheapest possible check."
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst textBlock = (response.content || []).find(b => b.type === 'text');\nreturn [{\n  json: {\n    test: 'Claude API',\n    success: !!textBlock,\n    message: textBlock ? `Connected. Model replied: \"${textBlock.text}\"` : 'No text content in response - check ANTHROPIC_API_KEY variable.',\n    raw_response: response\n  }\n}];"
+      },
+      "id": "2f8a9b35-3935-4f66-9c4f-f1c437f38cf8",
+      "name": "Report Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    }
+  ],
+  "connections": {
+    "Run Test": {
+      "main": [[{ "node": "Call Claude", "type": "main", "index": 0 }]]
+    },
+    "Call Claude": {
+      "main": [[{ "node": "Report Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

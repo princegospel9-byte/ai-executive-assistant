@@ -1,0 +1,62 @@
+{
+  "name": "Testing - Supabase Connection",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "f47cda65-9183-4dcf-b5e9-abf75450909d",
+      "name": "Run Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1226c753-ccea-4d9e-a082-e9b2b3ebc89f",
+      "name": "Query Profiles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nconst ok = Array.isArray(result);\nreturn [{\n  json: {\n    test: 'Supabase Connection',\n    success: ok,\n    message: ok ? `Connected. Query returned ${result.length} row(s).` : 'Unexpected response shape - check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY variables.'\n  }\n}];"
+      },
+      "id": "d5d43822-a366-448e-a595-0fe62d6d4226",
+      "name": "Report Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    }
+  ],
+  "connections": {
+    "Run Test": {
+      "main": [[{ "node": "Query Profiles", "type": "main", "index": 0 }]]
+    },
+    "Query Profiles": {
+      "main": [[{ "node": "Report Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

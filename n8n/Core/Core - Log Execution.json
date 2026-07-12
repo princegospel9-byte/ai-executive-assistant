@@ -1,0 +1,79 @@
+{
+  "name": "Core - Log Execution",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "47f38478-69ad-4e8b-964d-ba42479b3fb6",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst startedAt = input.started_at;\nconst finishedAt = new Date().toISOString();\nconst durationMs = startedAt ? (new Date(finishedAt).getTime() - new Date(startedAt).getTime()) : null;\n\nreturn [{\n  json: {\n    user_id: input.user_id,\n    workflow_name: input.workflow_name,\n    n8n_execution_id: $execution.id,\n    status: input.status,\n    started_at: startedAt,\n    finished_at: finishedAt,\n    duration_ms: durationMs,\n    error_message: input.error_message || null,\n    related_record_type: input.related_record_type || null,\n    related_record_id: input.related_record_id || null\n  }\n}];"
+      },
+      "id": "a8a5130f-8db5-4807-9674-956123e05736",
+      "name": "Compute Duration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/automation_runs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "30c5fa79-adec-4a2d-968c-6482c8814a9b",
+      "name": "Insert automation_runs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nreturn [{ json: { success: true, log_id: Array.isArray(row) ? row[0]?.id : row?.id } }];"
+      },
+      "id": "22e413bb-dbf9-43da-b94c-cbaeefec9f68",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    }
+  ],
+  "connections": {
+    "When Called": {
+      "main": [[{ "node": "Compute Duration", "type": "main", "index": 0 }]]
+    },
+    "Compute Duration": {
+      "main": [[{ "node": "Insert automation_runs", "type": "main", "index": 0 }]]
+    },
+    "Insert automation_runs": {
+      "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

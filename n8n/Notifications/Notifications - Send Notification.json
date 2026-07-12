@@ -1,0 +1,65 @@
+{
+  "name": "Notifications - Send Notification",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "5f1147eb-060d-4d0d-8139-b0762bcd1e2b",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/notifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, title: $json.title, message: $json.message || null, severity: $json.severity || 'info', channel: $json.channel || 'in_app', related_record_type: $json.related_record_type || null, related_record_id: $json.related_record_id || null }) }}",
+        "options": {}
+      },
+      "id": "d9574eec-8bd9-4f8c-b7c2-7a8d1905a8e5",
+      "name": "Insert Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "channel is stored either way, but only 'in_app' actually delivers anywhere today (the dashboard's Notifications view). 'email'/'whatsapp' delivery activates once those integrations exist in later phases."
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first().json;\nconst notification = Array.isArray(row) ? row[0] : row;\nreturn [{ json: { success: true, notification_id: notification.id } }];"
+      },
+      "id": "84b3c415-8540-4d31-bc2a-2b7f2a9addb6",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    }
+  ],
+  "connections": {
+    "When Called": {
+      "main": [[{ "node": "Insert Notification", "type": "main", "index": 0 }]]
+    },
+    "Insert Notification": {
+      "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}
