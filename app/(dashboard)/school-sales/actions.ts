@@ -87,6 +87,12 @@ export async function markWhatsAppSent(messageId: string, schoolId: string) {
   revalidatePath(`/school-sales/${schoolId}`);
 }
 
+export async function refreshCustomerMemory(schoolId: string) {
+  const result = await callN8nWebhook('kb-customer-activity', { school_id: schoolId });
+  revalidatePath(`/school-sales/${schoolId}`);
+  return result as { success: boolean; summary: string; preferences: string | null; recommended_next_action: string };
+}
+
 export async function generateInsights() {
   const result = await callN8nWebhook('crm-generate-insights', {});
   return result as { success: boolean; insights: string; pipeline_counts: Record<string, number>; total_active: number };

@@ -133,7 +133,37 @@
     },
     {
       "parameters": {
-        "jsCode": "const completed = $('Fetch Completed Tasks').first().json;\nconst pending = $('Fetch Pending Tasks').first().json;\nconst events = $('Fetch Events This Week').first().json;\n\nconst completedText = (completed || []).length ? completed.map(t => `- ${t.title}`).join('\\n') : 'None';\nconst pendingText = (pending || []).length\n  ? pending.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleDateString() : ''})`).join('\\n')\n  : 'None';\nconst eventsText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleDateString()}: ${e.title}`).join('\\n')\n  : 'No notable events';\n\nconst now = new Date();\nconst weekStart = new Date(now.getTime() - 7 * 86400000);\n\nreturn [{\n  json: {\n    completed_tasks: completedText,\n    pending_tasks: pendingText,\n    events_this_week: eventsText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    week_range: `${weekStart.toLocaleDateString()} - ${now.toLocaleDateString()}`,\n    week_start_date: weekStart.toISOString().split('T')[0]\n  }\n}];"
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "neq.lost_lead" },
+            { "name": "select", "value": "school_name,status,interest_level,next_follow_up_date,created_at" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d1a2b3c4-1111-4222-8333-444455556666",
+      "name": "Fetch Active Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-900, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Phase 6 addition: the daily briefing got a pipeline section in Phase 5 (0013_crm_prompts.sql); the weekly review never did until now. See documentation/knowledge-base-module.md."
+    },
+    {
+      "parameters": {
+        "jsCode": "const completed = $('Fetch Completed Tasks').first().json;\nconst pending = $('Fetch Pending Tasks').first().json;\nconst events = $('Fetch Events This Week').first().json;\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\n\nconst completedText = (completed || []).length ? completed.map(t => `- ${t.title}`).join('\\n') : 'None';\nconst pendingText = (pending || []).length\n  ? pending.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleDateString() : ''})`).join('\\n')\n  : 'None';\nconst eventsText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleDateString()}: ${e.title}`).join('\\n')\n  : 'No notable events';\n\nconst now = new Date();\nconst weekStart = new Date(now.getTime() - 7 * 86400000);\n\nconst newLeads = pipeline.filter(s => new Date(s.created_at) >= weekStart);\nconst pipelineCounts = pipeline.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {});\nconst pipelineText = pipeline.length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${status}: ${count}`).join('\\n')\n  : 'No active pipeline.';\n\nreturn [{\n  json: {\n    completed_tasks: completedText,\n    pending_tasks: pendingText,\n    events_this_week: eventsText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    week_range: `${weekStart.toLocaleDateString()} - ${now.toLocaleDateString()}`,\n    week_start_date: weekStart.toISOString().split('T')[0],\n    new_leads_count: newLeads.length,\n    pipeline_summary: pipelineText,\n    pipeline_counts: pipelineCounts\n  }\n}];"
       },
       "id": "c9c1021a-8469-4b09-97f3-e902b926b138",
       "name": "Build Review Input",
@@ -143,7 +173,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'weekly_review',\n    user_id: userId,\n    feature: 'weekly_review',\n    variables: {\n      week_range: input.week_range,\n      completed_count: input.completed_count,\n      completed_tasks: input.completed_tasks,\n      pending_count: input.pending_count,\n      pending_tasks: input.pending_tasks,\n      events_this_week: input.events_this_week\n    }\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'weekly_review',\n    user_id: userId,\n    feature: 'weekly_review',\n    variables: {\n      week_range: input.week_range,\n      completed_count: input.completed_count,\n      completed_tasks: input.completed_tasks,\n      pending_count: input.pending_count,\n      pending_tasks: input.pending_tasks,\n      events_this_week: input.events_this_week,\n      new_leads_count: input.new_leads_count,\n      pipeline_summary: input.pipeline_summary\n    }\n  }\n}];"
       },
       "id": "e942ad42-b8f3-4cc9-8291-999cb9c695ee",
       "name": "Build AI Request",
@@ -170,7 +200,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const aiResult = $input.first().json;\nconst input = $('Build Review Input').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\n\nreturn [{\n  json: {\n    user_id: userId,\n    week_start_date: input.week_start_date,\n    content_text: aiResult.output,\n    content_json: { completed_count: input.completed_count, pending_count: input.pending_count },\n    sent_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const aiResult = $input.first().json;\nconst input = $('Build Review Input').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\n\nreturn [{\n  json: {\n    user_id: userId,\n    week_start_date: input.week_start_date,\n    content_text: aiResult.output,\n    content_json: { completed_count: input.completed_count, pending_count: input.pending_count, new_leads_count: input.new_leads_count, pipeline_counts: input.pipeline_counts },\n    sent_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "a282cee7-a02e-47ec-bc4e-d910ea59e7ad",
       "name": "Prepare Review Insert",
@@ -247,6 +277,9 @@
       "main": [[{ "node": "Fetch Events This Week", "type": "main", "index": 0 }]]
     },
     "Fetch Events This Week": {
+      "main": [[{ "node": "Fetch Active Pipeline", "type": "main", "index": 0 }]]
+    },
+    "Fetch Active Pipeline": {
       "main": [[{ "node": "Build Review Input", "type": "main", "index": 0 }]]
     },
     "Build Review Input": {

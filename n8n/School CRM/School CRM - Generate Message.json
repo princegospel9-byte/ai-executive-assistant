@@ -174,6 +174,24 @@
     },
     {
       "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "KB - Customer Activity Analysis"
+        },
+        "options": {}
+      },
+      "id": "8488be4f-498c-4b7b-ae5d-5cfbe221388b",
+      "name": "Refresh Customer Memory",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-200, 150],
+      "notes": "Phase 6 addition: generating a message is real customer activity, so it refreshes the AI's rolling customer_memory summary in parallel with the send/approval branch above - doesn't block or affect the webhook response."
+    },
+    {
+      "parameters": {
         "jsCode": "const rows = $input.first().json;\nconst message = Array.isArray(rows) ? rows[0] : rows;\nconst schoolRows = $('Fetch School With Interactions').first().json;\nconst school = Array.isArray(schoolRows) ? schoolRows[0] : schoolRows;\n\nreturn [{\n  json: {\n    user_id: message.user_id,\n    action_type: 'send_email',\n    payload: {\n      generated_message_id: message.id,\n      to: school.email,\n      subject: message.subject,\n      body: message.content\n    },\n    related_record_type: 'generated_message',\n    related_record_id: message.id,\n    generated_message_id: message.id\n  }\n}];"
       },
       "id": "d68a50ed-be75-4b0a-865e-0e80df187cbe",
@@ -280,7 +298,12 @@
       "main": [[{ "node": "Insert Message", "type": "main", "index": 0 }]]
     },
     "Insert Message": {
-      "main": [[{ "node": "Is Email?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          { "node": "Is Email?", "type": "main", "index": 0 },
+          { "node": "Refresh Customer Memory", "type": "main", "index": 0 }
+        ]
+      ]
     },
     "Is Email?": {
       "main": [

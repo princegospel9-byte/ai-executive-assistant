@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { StatusSelect } from '@/components/school-sales/status-select';
 import { MessagePanel } from '@/components/school-sales/message-panel';
+import { CustomerKnowledgePanel } from '@/components/school-sales/customer-knowledge-panel';
 
 const INTEREST_STYLES: Record<string, string> = {
   hot: 'bg-red-100 text-red-800 hover:bg-red-100',
@@ -38,6 +39,12 @@ export default async function SchoolDetailPage({ params }: { params: Promise<{ i
     .select('id, message_type, channel, subject, content, status, created_at, sent_at')
     .eq('school_id', id)
     .order('created_at', { ascending: false });
+
+  const { data: customerMemory } = await supabase
+    .from('customer_memory')
+    .select('summary, preferences, last_updated')
+    .eq('school_id', id)
+    .maybeSingle();
 
   return (
     <div className="space-y-6">
@@ -78,6 +85,8 @@ export default async function SchoolDetailPage({ params }: { params: Promise<{ i
       </div>
 
       <MessagePanel schoolId={school.id} />
+
+      <CustomerKnowledgePanel schoolId={school.id} memory={customerMemory ?? null} />
 
       <div className="rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="text-sm font-semibold text-neutral-900">Message history</h2>

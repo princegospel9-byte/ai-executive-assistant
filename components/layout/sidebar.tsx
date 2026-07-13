@@ -9,10 +9,12 @@ const NAV_ITEMS = [
   { href: '/calendar', label: 'Calendar' },
   { href: '/tasks', label: 'Tasks' },
   { href: '/contacts', label: 'Contacts' },
-  { href: '/crm', label: 'CRM' },
   { href: '/school-sales', label: 'School Sales' },
+  { href: '/knowledge-base', label: 'Knowledge Base' },
+  { href: '/reports', label: 'Reports' },
+  { href: '/search', label: 'Search' },
   { href: '/job-tracker', label: 'Job Tracker' },
-  { href: '/assistant', label: 'AI Assistant' },
+  { href: '/assistant', label: 'AI Advisor' },
   { href: '/settings', label: 'Settings' },
 ];
 

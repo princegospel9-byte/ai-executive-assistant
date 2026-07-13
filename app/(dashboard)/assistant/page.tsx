@@ -1,11 +1,15 @@
-import { PagePlaceholder } from '@/components/layout/page-placeholder';
+import { Chat } from '@/components/assistant/chat';
 
 export default function AssistantPage() {
   return (
-    <PagePlaceholder
-      title="AI Assistant"
-      description="Chat directly with your Executive Assistant agent — ask questions, review proposed actions, approve them here."
-      phase="Coming in Phase 6-7 — AI Knowledge Assistant & Executive AI Agent"
-    />
+    <div className="flex h-[calc(100vh-8rem)] flex-col">
+      <div className="mb-4">
+        <h1 className="text-xl font-semibold text-neutral-900">AI Advisor</h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          Your business-aware assistant — answers from your uploaded documents, business memory, sales pipeline, and tasks.
+        </p>
+      </div>
+      <Chat />
+    </div>
   );
 }

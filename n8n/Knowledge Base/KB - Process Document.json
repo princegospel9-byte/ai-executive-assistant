@@ -1,0 +1,291 @@
+{
+  "name": "KB - Process Document",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-process-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000001",
+      "name": "Called From Dashboard (Process Document)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-2000, 0],
+      "notes": "Requires header x-automation-secret. Body: { document_id, text } - text extraction already happened in Next.js before this call (see documentation/knowledge-base-module.md). Responds immediately, chunks/embeds/stores in the background."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { document_id: payload.document_id, text: payload.text || '', auth_ok: authOk } }];"
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000002",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1800, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000003",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000004",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1400, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/knowledge_documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.document_id }}" },
+            { "name": "select", "value": "id,user_id" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000005",
+      "name": "Fetch Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst doc = Array.isArray(rows) ? rows[0] : rows;\nif (!doc) {\n  throw new Error('Document not found: ' + $('Normalize & Check Auth').first().json.document_id);\n}\nconst text = $('Normalize & Check Auth').first().json.text;\n\n// ~1000 chars per chunk, ~150 char overlap, split on paragraph boundaries\n// where possible so a chunk doesn't cut a sentence in half mid-idea.\nconst CHUNK_SIZE = 1000;\nconst OVERLAP = 150;\nconst paragraphs = text.split(/\\n\\s*\\n/).map(p => p.trim()).filter(Boolean);\nconst chunks = [];\nlet current = '';\nfor (const para of paragraphs) {\n  if ((current + '\\n\\n' + para).length > CHUNK_SIZE && current) {\n    chunks.push(current.trim());\n    current = current.slice(Math.max(0, current.length - OVERLAP)) + '\\n\\n' + para;\n  } else {\n    current = current ? current + '\\n\\n' + para : para;\n  }\n}\nif (current.trim()) chunks.push(current.trim());\n\n// A paragraph longer than CHUNK_SIZE on its own (e.g. a dense table dumped\n// from Excel) still needs splitting - hard-wrap anything left oversized.\nconst final = [];\nfor (const c of chunks) {\n  if (c.length <= CHUNK_SIZE * 1.5) {\n    final.push(c);\n  } else {\n    for (let i = 0; i < c.length; i += CHUNK_SIZE - OVERLAP) {\n      final.push(c.slice(i, i + CHUNK_SIZE));\n    }\n  }\n}\n\nreturn [{\n  json: {\n    document_id: doc.id,\n    user_id: doc.user_id,\n    chunks: final.map((content, index) => ({ index, content }))\n  }\n}];"
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000006",
+      "name": "Chunk Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1200, -150],
+      "notes": "Capped implicitly by Voyage's per-request batch limit (~128 inputs) - very large documents (100+ chunks) are a known limitation, not handled with pagination in this build. See documentation/knowledge-base-module.md."
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{ json: { success: true, message: 'Processing document in the background.', chunk_count: input.chunks.length } }];"
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000007",
+      "name": "Build Ack Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, -300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000008",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-800, -300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.voyageai.com/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $vars.VOYAGE_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: $json.chunks.map(c => c.content), model: 'voyage-3.5', input_type: 'document' }) }}",
+        "options": {}
+      },
+      "id": "a1b1c1d1-0001-4001-8001-000000000009",
+      "name": "Embed Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1000, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "One batched call for all of a document's chunks, not one call per chunk - Voyage's embeddings endpoint accepts an array of inputs."
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunkInfo = $('Chunk Text').first().json;\nconst embeddingResponse = $input.first().json;\nconst embeddings = embeddingResponse.data || [];\nif (embeddings.length !== chunkInfo.chunks.length) {\n  throw new Error(`Embedding count mismatch: expected ${chunkInfo.chunks.length}, got ${embeddings.length}`);\n}\n\nconst rows = chunkInfo.chunks.map((chunk, i) => ({\n  user_id: chunkInfo.user_id,\n  document_id: chunkInfo.document_id,\n  chunk_index: chunk.index,\n  content: chunk.content,\n  embedding: embeddings.find(e => e.index === i)?.embedding,\n  token_count: Math.ceil(chunk.content.length / 4)\n}));\n\nreturn [{ json: { document_id: chunkInfo.document_id, rows } }];"
+      },
+      "id": "a1b1c1d1-0001-4001-8001-00000000000a",
+      "name": "Prepare Chunk Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/document_chunks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.rows) }}",
+        "options": {}
+      },
+      "id": "a1b1c1d1-0001-4001-8001-00000000000b",
+      "name": "Insert Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/knowledge_documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $('Prepare Chunk Rows').first().json.document_id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'ready' }) }}",
+        "options": {}
+      },
+      "id": "a1b1c1d1-0001-4001-8001-00000000000c",
+      "name": "Mark Ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/activity_logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('Prepare Chunk Rows').first().json.rows[0].user_id, action: 'document_processed', entity_type: 'knowledge_document', entity_id: $('Prepare Chunk Rows').first().json.document_id, description: `Processed into ${$('Prepare Chunk Rows').first().json.rows.length} chunk(s).` }) }}",
+        "options": {}
+      },
+      "id": "a1b1c1d1-0001-4001-8001-00000000000d",
+      "name": "Log Activity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Called From Dashboard (Process Document)": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Normalize & Check Auth": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Fetch Document", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Document": {
+      "main": [[{ "node": "Chunk Text", "type": "main", "index": 0 }]]
+    },
+    "Chunk Text": {
+      "main": [
+        [
+          { "node": "Build Ack Response", "type": "main", "index": 0 },
+          { "node": "Embed Chunks", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Build Ack Response": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    },
+    "Embed Chunks": {
+      "main": [[{ "node": "Prepare Chunk Rows", "type": "main", "index": 0 }]]
+    },
+    "Prepare Chunk Rows": {
+      "main": [[{ "node": "Insert Chunks", "type": "main", "index": 0 }]]
+    },
+    "Insert Chunks": {
+      "main": [[{ "node": "Mark Ready", "type": "main", "index": 0 }]]
+    },
+    "Mark Ready": {
+      "main": [[{ "node": "Log Activity", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}
