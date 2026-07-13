@@ -1,0 +1,282 @@
+{
+  "name": "School CRM - Import Schools",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-import-schools",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d3b682a4-e5a1-4efa-b8e8-cc4d7867f1cc",
+      "name": "Called From Dashboard (Import)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-2000, 0],
+      "notes": "Requires header x-automation-secret. Body: { rows: [{ school_name, location?, student_population?, contact_person?, phone?, email?, current_software_system?, lead_source? }] }. Responds immediately with a count, then keeps processing rows in the background - see notes on 'Build Ack Response'."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { rows: payload.rows || [], auth_ok: authOk } }];"
+      },
+      "id": "e0bcb6da-09b2-4b88-a9dd-7cc46c200b45",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1800, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9e077f15-1973-4119-b95b-383a022189ff",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "72469f1b-afd6-473e-8182-dbf7520b07fc",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1400, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2e15555e-c313-4243-a1a3-e8a3c7eeb99f",
+      "name": "Get Primary User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const auth = $('Normalize & Check Auth').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nconst rows = (auth.rows || []).map(r => ({\n  user_id: userId,\n  school_name: r.school_name,\n  location: r.location || null,\n  student_population: r.student_population || null,\n  contact_person: r.contact_person || null,\n  phone: r.phone || null,\n  email: r.email || null,\n  current_software_system: r.current_software_system || null,\n  lead_source: r.lead_source || null\n}));\nreturn [{ json: { user_id: userId, rows, row_count: rows.length } }];"
+      },
+      "id": "464fa44d-c56e-4fa0-9741-4990da5ed09f",
+      "name": "Prep Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1200, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{ json: { success: true, message: `Importing ${input.row_count} school(s) - this runs in the background, refresh the pipeline in a few seconds.` } }];"
+      },
+      "id": "ee29d43e-2629-4ea5-ab67-a366fa537bac",
+      "name": "Build Ack Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, -300],
+      "notes": "Responds immediately rather than waiting for all rows to finish - a bulk import of even a modest list would otherwise risk the HTTP client timing out waiting synchronously."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "e5b0d4e4-4e62-4309-ba8d-7fbf6be3dff1",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-800, -300]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "rows", "options": {} },
+      "id": "5c0e2cdc-a038-4d6b-9056-283b2c58a6db",
+      "name": "Split Out Rows",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-1000, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/organizations?on_conflict=user_id,name",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, name: $json.school_name, type: 'school', location: $json.location }) }}",
+        "options": {}
+      },
+      "id": "a5093c50-23b2-418b-b692-d8001b13c87f",
+      "name": "Upsert Organization",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-800, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $('Split Out Rows').item.json;\nconst orgRows = $input.first().json;\nconst org = Array.isArray(orgRows) ? orgRows[0] : orgRows;\nreturn [{\n  json: {\n    user_id: row.user_id,\n    organization_id: org.id,\n    full_name: row.contact_person,\n    email: row.email,\n    phone: row.phone,\n    category: 'lead'\n  }\n}];"
+      },
+      "id": "019d32ef-67d3-4993-a8fb-dcce6de57174",
+      "name": "Prep Contact Upsert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/contacts?on_conflict=user_id,email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "afbed9db-ed1f-4bf8-b704-74b1bac863a8",
+      "name": "Upsert Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $('Split Out Rows').item.json;\nconst orgRows = $('Upsert Organization').item.json;\nconst org = Array.isArray(orgRows) ? orgRows[0] : orgRows;\nconst contactRows = $input.first().json;\nconst contact = Array.isArray(contactRows) ? contactRows[0] : contactRows;\nreturn [{\n  json: {\n    user_id: row.user_id,\n    school_name: row.school_name,\n    location: row.location,\n    student_population: row.student_population,\n    contact_person: row.contact_person,\n    phone: row.phone,\n    email: row.email,\n    current_software_system: row.current_software_system,\n    lead_source: row.lead_source,\n    organization_id: org.id,\n    contact_id: contact.id\n  }\n}];"
+      },
+      "id": "eddec92d-d4ce-45ef-9bcb-df51c502e0c0",
+      "name": "Prep School Upsert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools?on_conflict=user_id,school_name",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "97850a2a-d9d0-465e-9d90-057aab1423ee",
+      "name": "Upsert School",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Called From Dashboard (Import)": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Normalize & Check Auth": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Primary User": {
+      "main": [[{ "node": "Prep Rows", "type": "main", "index": 0 }]]
+    },
+    "Prep Rows": {
+      "main": [
+        [
+          { "node": "Build Ack Response", "type": "main", "index": 0 },
+          { "node": "Split Out Rows", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Build Ack Response": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    },
+    "Split Out Rows": {
+      "main": [[{ "node": "Upsert Organization", "type": "main", "index": 0 }]]
+    },
+    "Upsert Organization": {
+      "main": [[{ "node": "Prep Contact Upsert", "type": "main", "index": 0 }]]
+    },
+    "Prep Contact Upsert": {
+      "main": [[{ "node": "Upsert Contact", "type": "main", "index": 0 }]]
+    },
+    "Upsert Contact": {
+      "main": [[{ "node": "Prep School Upsert", "type": "main", "index": 0 }]]
+    },
+    "Prep School Upsert": {
+      "main": [[{ "node": "Upsert School", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

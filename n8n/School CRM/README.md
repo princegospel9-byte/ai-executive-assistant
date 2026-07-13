@@ -1,3 +1,3 @@
 # School CRM
 
-Reserved for SchoolPro GH sales pipeline automation (follow-up reminders, visit scheduling). Not built yet. Will call `AI - Process Request` with `prompt_key: school_sales`, already seeded in the prompt library.
+Phase 5: SchoolPro GH sales pipeline automation. Five workflows — `Import Schools`, `Suggest Follow-ups`, `Generate Message`, `Handle Send Decision`, `Generate Insights` — plus the sales-pipeline section added to `Briefing/Briefing - Daily Morning Briefing`. Calls `AI - Process Request` with `crm_follow_up`, `crm_message`, and `crm_insights` (seeded in migration `0013_crm_prompts.sql`), not the `crm_analysis`/`follow_up_suggestions`/`school_sales` prompt keys sketched during Phase 2 — see `documentation/crm-module.md` for the full design. The `n8n/CRM` folder is an earlier Phase 2 placeholder for this same idea and is now superseded; it was left in place rather than deleted since it wasn't part of this phase's task.

@@ -1,0 +1,310 @@
+{
+  "name": "School CRM - Generate Message",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-generate-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "efc7e7fc-9a17-41c1-811a-ab1dcf95247f",
+      "name": "Called From Dashboard (Generate Message)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1800, 0],
+      "notes": "Requires header x-automation-secret. Body: { school_id, message_type, channel }"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { school_id: payload.school_id, message_type: payload.message_type, channel: payload.channel, auth_ok: authOk } }];"
+      },
+      "id": "47e62cc2-49c1-4c01-b131-6c9f443775de",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "88ad020c-ebf0-46ee-bc30-4590087c8ff0",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1400, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "040ffb7f-dbd2-4d04-96c0-5ceb7855a1b3",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1200, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.school_id }}" },
+            { "name": "select", "value": "*,school_interactions(interaction_type,notes,occurred_at)" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3ebf753a-e322-4d07-ba31-2b7ba9cf6016",
+      "name": "Fetch School With Interactions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst school = Array.isArray(rows) ? rows[0] : rows;\nif (!school) {\n  throw new Error('School not found for id: ' + $('Normalize & Check Auth').first().json.school_id);\n}\nconst interactions = school.school_interactions || [];\nconst historyText = interactions.length\n  ? interactions.slice(0, 5).map(i => `- ${new Date(i.occurred_at).toLocaleDateString()} (${i.interaction_type}): ${i.notes || ''}`).join('\\n')\n  : 'No recorded interactions yet.';\n\nconst auth = $('Normalize & Check Auth').first().json;\n\nreturn [{\n  json: {\n    prompt_key: 'crm_message',\n    user_id: school.user_id,\n    feature: 'crm_message',\n    related_record_type: 'school',\n    related_record_id: school.id,\n    variables: {\n      school_name: school.school_name,\n      contact_person: school.contact_person || 'the school administrator',\n      message_type: auth.message_type,\n      channel: auth.channel,\n      context: historyText\n    }\n  }\n}];"
+      },
+      "id": "c14e0398-a51a-4a8a-b86b-d865c4f0bf89",
+      "name": "Build AI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, -150]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "AI - Process Request"
+        },
+        "options": {}
+      },
+      "id": "043e6e80-c1fb-4758-805b-66d5f8dac0a7",
+      "name": "Call AI - Process Request",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-800, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResult = $input.first().json;\nconst output = aiResult.output;\nconst built = $('Build AI Request').first().json;\nreturn [{\n  json: {\n    user_id: built.user_id,\n    school_id: built.related_record_id,\n    message_type: built.variables.message_type,\n    channel: built.variables.channel,\n    subject: output.subject || null,\n    content: output.body,\n    model_used: aiResult.usage?.model,\n    prompt_version: aiResult.prompt_version\n  }\n}];"
+      },
+      "id": "48460d99-5d64-488b-ab4f-eb7680ee0e48",
+      "name": "Prepare Message Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/generated_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "f348a323-89a7-414d-9783-4afbf5231798",
+      "name": "Insert Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Normalize & Check Auth').first().json.channel }}",
+              "rightValue": "email",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8488be4f-498c-4b7b-ae5d-5cfbe221388a",
+      "name": "Is Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-200, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst message = Array.isArray(rows) ? rows[0] : rows;\nconst schoolRows = $('Fetch School With Interactions').first().json;\nconst school = Array.isArray(schoolRows) ? schoolRows[0] : schoolRows;\n\nreturn [{\n  json: {\n    user_id: message.user_id,\n    action_type: 'send_email',\n    payload: {\n      generated_message_id: message.id,\n      to: school.email,\n      subject: message.subject,\n      body: message.content\n    },\n    related_record_type: 'generated_message',\n    related_record_id: message.id,\n    generated_message_id: message.id\n  }\n}];"
+      },
+      "id": "d68a50ed-be75-4b0a-865e-0e80df187cbe",
+      "name": "Build Approval Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -300]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Core - Request Approval"
+        },
+        "options": {}
+      },
+      "id": "acdabb92-4d26-49b1-889e-2af895ddf4e3",
+      "name": "Call Request Approval",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [200, -300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/generated_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $('Build Approval Request').first().json.generated_message_id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ approval_id: $json.approval_id }) }}",
+        "options": {}
+      },
+      "id": "2c7fa938-dae2-44ae-a8c6-fb323e29e66a",
+      "name": "Link Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, -300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Insert Message').first().json;\nconst message = Array.isArray(rows) ? rows[0] : rows;\nlet approvalId = null;\ntry {\n  approvalId = $('Build Approval Request').first().json.approval_id ?? null;\n} catch (e) {\n  // Not reached on the whatsapp (no-approval) branch - approvalId stays null, which is correct.\n}\nreturn [{ json: { success: true, message_id: message.id, channel: message.channel, subject: message.subject, content: message.content, approval_id: approvalId } }];"
+      },
+      "id": "9497572a-b214-4a4f-a46b-f431fbe3b198",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "notes": "References 'Insert Message' by name explicitly rather than relying on the immediately-preceding node's shape, since it's reachable from two different branches (email vs whatsapp)."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "c3fd5152-ba70-46b4-a332-3fba87be8491",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [400, 0]
+    }
+  ],
+  "connections": {
+    "Called From Dashboard (Generate Message)": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Normalize & Check Auth": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Fetch School With Interactions", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch School With Interactions": {
+      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+    },
+    "Build AI Request": {
+      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+    },
+    "Call AI - Process Request": {
+      "main": [[{ "node": "Prepare Message Insert", "type": "main", "index": 0 }]]
+    },
+    "Prepare Message Insert": {
+      "main": [[{ "node": "Insert Message", "type": "main", "index": 0 }]]
+    },
+    "Insert Message": {
+      "main": [[{ "node": "Is Email?", "type": "main", "index": 0 }]]
+    },
+    "Is Email?": {
+      "main": [
+        [{ "node": "Build Approval Request", "type": "main", "index": 0 }],
+        [{ "node": "Build Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Approval Request": {
+      "main": [[{ "node": "Call Request Approval", "type": "main", "index": 0 }]]
+    },
+    "Call Request Approval": {
+      "main": [[{ "node": "Link Approval", "type": "main", "index": 0 }]]
+    },
+    "Link Approval": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Build Response": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

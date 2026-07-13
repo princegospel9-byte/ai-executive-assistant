@@ -1,0 +1,340 @@
+{
+  "name": "School CRM - Suggest Follow-ups",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1, "triggerAtHour": 5, "triggerAtMinute": 45 }] }
+      },
+      "id": "f71cf12f-870b-40bc-a73a-5809589007ba",
+      "name": "Every Day at 5:45 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-2200, 0],
+      "notes": "Runs before the 6:00 AM Daily Morning Briefing so today's follow-up tasks exist in time to be summarized in it."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "52dc22e8-7259-47ff-b751-d681540b293f",
+      "name": "Get Primary User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-2000, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "in.(contacted,demo_scheduled,demo_completed,negotiating,trial_started)" },
+            { "name": "next_follow_up_date", "value": "=lte.{{ new Date().toISOString().split('T')[0] }}" },
+            { "name": "select", "value": "*" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a6710a82-102e-46b7-b9b4-325b3b9b7840",
+      "name": "Fetch Due Follow-ups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1800, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "in.(contacted,demo_scheduled,demo_completed,negotiating,trial_started)" },
+            { "name": "next_follow_up_date", "value": "is.null" },
+            { "name": "updated_at", "value": "=lte.{{ new Date(Date.now() - 14 * 86400000).toISOString() }}" },
+            { "name": "select", "value": "*" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9a3f0160-8f06-4aac-ad12-b93868f4bf61",
+      "name": "Fetch Stale No-Date",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1800, 150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Catches leads that were never given a follow-up date and have gone quiet 14+ days - two simple queries merged in code, rather than one compound OR/AND filter, to keep the query syntax low-risk."
+    },
+    {
+      "parameters": {
+        "jsCode": "const due = $('Fetch Due Follow-ups').first().json || [];\nconst stale = $('Fetch Stale No-Date').first().json || [];\nconst seen = new Set();\nconst merged = [];\nfor (const s of [...due, ...stale]) {\n  if (!seen.has(s.id)) { seen.add(s.id); merged.push(s); }\n}\nreturn [{ json: { items: merged } }];"
+      },
+      "id": "cd44d5b0-fcbd-4608-bb8e-eb84e0599ca7",
+      "name": "Merge & Dedupe Schools",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "id": "58d21df0-4c2d-4792-9fbb-9e2dda0d8473",
+      "name": "Split Out Schools",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-1400, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/school_interactions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "school_id", "value": "=eq.{{ $json.id }}" },
+            { "name": "order", "value": "occurred_at.desc" },
+            { "name": "limit", "value": "5" },
+            { "name": "select", "value": "interaction_type,notes,occurred_at,objections" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a88fbe9a-b0cb-47c1-8045-854b20eb2f99",
+      "name": "Fetch Interaction History",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const school = $('Split Out Schools').item.json;\nconst interactions = $input.first().json || [];\nconst daysSince = school.updated_at ? Math.round((Date.now() - new Date(school.updated_at).getTime()) / 86400000) : null;\n\nconst historyText = interactions.length\n  ? interactions.map(i => `- ${new Date(i.occurred_at).toLocaleDateString()} (${i.interaction_type}): ${i.notes || ''}`).join('\\n')\n  : 'No recorded interactions yet.';\n\nconst objectionsText = interactions.map(i => i.objections).filter(Boolean).join('; ') || 'None recorded.';\n\nreturn [{\n  json: {\n    prompt_key: 'crm_follow_up',\n    user_id: school.user_id,\n    feature: 'crm_follow_up',\n    related_record_type: 'school',\n    related_record_id: school.id,\n    variables: {\n      school_name: school.school_name,\n      status: school.status,\n      interest_level: school.interest_level,\n      days_since_last_contact: daysSince ?? 'unknown',\n      interaction_history: historyText,\n      objections: objectionsText\n    }\n  }\n}];"
+      },
+      "id": "cda1ecd7-43ae-40a8-b2cb-311bcc93df6a",
+      "name": "Build AI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, 0]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "AI - Process Request"
+        },
+        "options": {}
+      },
+      "id": "a4b51b47-8d06-4d4b-9134-e72098a939c7",
+      "name": "Call AI - Process Request",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-800, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const school = $('Split Out Schools').item.json;\nconst output = $input.first().json.output;\n\nreturn [{\n  json: {\n    user_id: school.user_id,\n    title: `Follow up: ${school.school_name}`,\n    description: output.suggested_action,\n    category: 'sales_followup',\n    priority: school.interest_level === 'hot' ? 'high' : 'medium',\n    due_date: output.suggested_follow_up_date,\n    related_school_id: school.id,\n    ai_suggested: true\n  }\n}];"
+      },
+      "id": "41ef28e0-3c86-4ca2-8121-5c107a172c5e",
+      "name": "Prepare Task Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "406ee706-7f8d-4efc-bc83-9b1a28ed0b7c",
+      "name": "Insert Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $('Split Out Schools').item.json.id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ next_follow_up_date: $json.due_date }) }}",
+        "options": {}
+      },
+      "id": "01f140c4-a23b-44c8-99f5-5d6a2eb63e62",
+      "name": "Update School Next Follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Advances next_follow_up_date so this same lead isn't re-caught by tomorrow's run."
+    },
+    {
+      "parameters": {
+        "jsCode": "const school = $('Split Out Schools').item.json;\nconst aiResult = $input.first().json;\nconst output = aiResult.output;\nreturn [{\n  json: {\n    user_id: school.user_id,\n    school_id: school.id,\n    message_type: 'follow_up',\n    channel: 'whatsapp',\n    content: output.draft_message,\n    model_used: aiResult.usage?.model\n  }\n}];"
+      },
+      "id": "02ac86cf-50f8-4251-8fb2-e890ba24187e",
+      "name": "Prepare Draft Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/generated_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "d57f6ff9-fd6c-4812-a5a3-a39dabf545cb",
+      "name": "Insert Generated Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "So a ready-to-send WhatsApp follow-up is waiting on the school's page, not just a task reminding you to write one."
+    }
+  ],
+  "connections": {
+    "Every Day at 5:45 AM": {
+      "main": [[{ "node": "Get Primary User", "type": "main", "index": 0 }]]
+    },
+    "Get Primary User": {
+      "main": [[{ "node": "Fetch Due Follow-ups", "type": "main", "index": 0 }]]
+    },
+    "Fetch Due Follow-ups": {
+      "main": [[{ "node": "Fetch Stale No-Date", "type": "main", "index": 0 }]]
+    },
+    "Fetch Stale No-Date": {
+      "main": [[{ "node": "Merge & Dedupe Schools", "type": "main", "index": 0 }]]
+    },
+    "Merge & Dedupe Schools": {
+      "main": [[{ "node": "Split Out Schools", "type": "main", "index": 0 }]]
+    },
+    "Split Out Schools": {
+      "main": [[{ "node": "Fetch Interaction History", "type": "main", "index": 0 }]]
+    },
+    "Fetch Interaction History": {
+      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+    },
+    "Build AI Request": {
+      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+    },
+    "Call AI - Process Request": {
+      "main": [
+        [
+          { "node": "Prepare Task Insert", "type": "main", "index": 0 },
+          { "node": "Prepare Draft Message", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prepare Task Insert": {
+      "main": [[{ "node": "Insert Task", "type": "main", "index": 0 }]]
+    },
+    "Insert Task": {
+      "main": [[{ "node": "Update School Next Follow-up", "type": "main", "index": 0 }]]
+    },
+    "Prepare Draft Message": {
+      "main": [[{ "node": "Insert Generated Message", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "",
+    "timezone": "Africa/Accra"
+  },
+  "pinData": {}
+}

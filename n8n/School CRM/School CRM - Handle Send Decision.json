@@ -1,0 +1,423 @@
+{
+  "name": "School CRM - Handle Send Decision",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-send-decision",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b351dc3d-e64c-40cd-90e3-4f0ac08cec90",
+      "name": "Called From Dashboard (Approve/Reject)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-2000, 0],
+      "notes": "Requires header x-automation-secret. Body: { approval_id, decision: 'approved' | 'rejected' }. The only workflow allowed to actually send a CRM email - and only on approval. Fresh email, not a reply, so no threading headers."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { approval_id: payload.approval_id, decision: payload.decision, auth_ok: authOk } }];"
+      },
+      "id": "b7b91bb1-055d-4037-b0f6-0bb155db54db",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1800, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a290fb46-7fae-455a-b2d9-ad07e4cdb9fb",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "2ebfc7a1-30d1-4b04-9afc-901ad908a37c",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1400, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/generated_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "approval_id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" },
+            { "name": "select", "value": "*" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "134cfd18-67d4-44d5-8891-aa206768403f",
+      "name": "Fetch Message By Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Normalize & Check Auth').first().json.decision }}",
+              "rightValue": "approved",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5b25e19f-2708-4d4e-a2e3-44702e169792",
+      "name": "Is Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1200, -150]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Fetch Message By Approval').first().json[0].school_id }}" },
+            { "name": "select", "value": "email,school_name" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1b6bc9d0-96ac-445c-a92b-c5614fac3677",
+      "name": "Fetch School Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1000, -300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const schoolRows = $input.first().json;\nconst school = Array.isArray(schoolRows) ? schoolRows[0] : schoolRows;\nconst messageRows = $('Fetch Message By Approval').first().json;\nconst message = Array.isArray(messageRows) ? messageRows[0] : messageRows;\n\nconst subject = message.subject || 'Message from KBrisks Systems and Solutions';\nconst rawMessage = [\n  `To: ${school.email}`,\n  `Subject: ${subject}`,\n  'Content-Type: text/plain; charset=utf-8',\n  '',\n  message.content\n].join('\\r\\n');\n\nconst base64url = Buffer.from(rawMessage).toString('base64')\n  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\n\nreturn [{ json: { raw: base64url, message_id: message.id, user_id: message.user_id, school_email: school.email } }];"
+      },
+      "id": "ae559a4f-7bd4-4184-a113-0282ec3d1f01",
+      "name": "Build Raw Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, -300],
+      "notes": "Fresh outbound email, not a reply - no In-Reply-To/References/threadId, unlike the email module's send."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $json.raw }) }}",
+        "options": {}
+      },
+      "id": "b568fb55-68ee-4472-a8fd-891b518c4732",
+      "name": "Send Gmail Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, -300],
+      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "notes": "2 retries, not 3 - same reasoning as the email module's send node: avoid risking a duplicate send to a real prospect."
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/generated_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $('Build Raw Email').first().json.message_id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'sent', sent_at: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "id": "409c3673-26c9-4717-8527-2280630ef18e",
+      "name": "Mark Message Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, -300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'approved', decided_at: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "id": "d55af9d4-1d85-4348-a942-8bcc6573bb14",
+      "name": "Mark Approval Approved",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, -300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const built = $('Build Raw Email').first().json;\nreturn [{\n  json: {\n    user_id: built.user_id,\n    title: 'Message sent',\n    message: `Your message to ${built.school_email} was sent.`,\n    severity: 'info',\n    channel: 'in_app',\n    related_record_type: 'generated_message',\n    related_record_id: built.message_id\n  }\n}];"
+      },
+      "id": "895f90f5-a4ba-46b5-a48b-d8487fae63bd",
+      "name": "Build Notification Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -300]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Notifications - Send Notification"
+        },
+        "options": {}
+      },
+      "id": "d2fcc58e-0022-453a-8779-a58e19849c95",
+      "name": "Notify",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [200, -300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, status: 'sent' } }];"
+      },
+      "id": "7b3f49ee-7f9c-453d-ac88-05f2150ed14f",
+      "name": "Build Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, -300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/generated_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "approval_id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'discarded' }) }}",
+        "options": {}
+      },
+      "id": "bb2e8afe-a92b-482c-87b5-851e10d0ab41",
+      "name": "Mark Message Discarded",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1000, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'rejected', decided_at: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "id": "6bac81e5-9b72-49d2-acc6-e00e0eed3dfe",
+      "name": "Mark Approval Rejected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-800, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, status: 'discarded' } }];"
+      },
+      "id": "4ef72e09-8e5a-46ca-a664-47a3228079dc",
+      "name": "Build Rejected Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "f7684c4d-4299-4db7-87f5-8fdc85ac738c",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [600, -150]
+    }
+  ],
+  "connections": {
+    "Called From Dashboard (Approve/Reject)": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Normalize & Check Auth": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Fetch Message By Approval", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Message By Approval": {
+      "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }]]
+    },
+    "Is Approved?": {
+      "main": [
+        [{ "node": "Fetch School Email", "type": "main", "index": 0 }],
+        [{ "node": "Mark Message Discarded", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch School Email": {
+      "main": [[{ "node": "Build Raw Email", "type": "main", "index": 0 }]]
+    },
+    "Build Raw Email": {
+      "main": [[{ "node": "Send Gmail Message", "type": "main", "index": 0 }]]
+    },
+    "Send Gmail Message": {
+      "main": [[{ "node": "Mark Message Sent", "type": "main", "index": 0 }]]
+    },
+    "Mark Message Sent": {
+      "main": [[{ "node": "Mark Approval Approved", "type": "main", "index": 0 }]]
+    },
+    "Mark Approval Approved": {
+      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Notification Payload": {
+      "main": [[{ "node": "Notify", "type": "main", "index": 0 }]]
+    },
+    "Notify": {
+      "main": [[{ "node": "Build Success Response", "type": "main", "index": 0 }]]
+    },
+    "Build Success Response": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    },
+    "Mark Message Discarded": {
+      "main": [[{ "node": "Mark Approval Rejected", "type": "main", "index": 0 }]]
+    },
+    "Mark Approval Rejected": {
+      "main": [[{ "node": "Build Rejected Response", "type": "main", "index": 0 }]]
+    },
+    "Build Rejected Response": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

@@ -198,7 +198,37 @@
     },
     {
       "parameters": {
-        "jsCode": "const tasksDue = $('Fetch Today\\'s Tasks').first().json;\nconst events = $('Fetch Today\\'s Events').first().json;\nconst emails = $('Fetch Important Emails').first().json;\nconst completed = $('Fetch Completed This Week').first().json;\nconst pending = $('Fetch Pending Count').first().json;\n\nconst tasksDueText = (tasksDue || []).length\n  ? tasksDue.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleString() : ''})`).join('\\n')\n  : 'None';\n\nconst calendarText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${e.title}${e.location ? ' at ' + e.location : ''}`).join('\\n')\n  : 'No meetings scheduled';\n\nconst emailsText = (emails || []).length\n  ? emails.map(e => `- From ${e.from_name || e.from_address}: ${e.subject}`).join('\\n')\n  : 'No urgent unread emails';\n\nreturn [{\n  json: {\n    tasks_due: tasksDueText,\n    calendar_today: calendarText,\n    emails_summary: emailsText,\n    follow_ups_due: 'Not yet tracked - CRM module not built yet',\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length\n  }\n}];"
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "in.(new_lead,contacted,demo_scheduled,demo_completed,negotiating,trial_started)" },
+            { "name": "select", "value": "school_name,status,next_follow_up_date,interest_level" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "88a4c1e2-3f5a-4b1a-9d0e-2f6a7b8c9d0e",
+      "name": "Fetch Active Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1100, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Added in Phase 5 - feeds the sales-priorities and pipeline-snapshot sections folded into this briefing instead of running a second separate sales briefing."
+    },
+    {
+      "parameters": {
+        "jsCode": "const tasksDue = $('Fetch Today\\'s Tasks').first().json;\nconst events = $('Fetch Today\\'s Events').first().json;\nconst emails = $('Fetch Important Emails').first().json;\nconst completed = $('Fetch Completed This Week').first().json;\nconst pending = $('Fetch Pending Count').first().json;\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\n\nconst tasksDueText = (tasksDue || []).length\n  ? tasksDue.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleString() : ''})`).join('\\n')\n  : 'None';\n\nconst calendarText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${e.title}${e.location ? ' at ' + e.location : ''}`).join('\\n')\n  : 'No meetings scheduled';\n\nconst emailsText = (emails || []).length\n  ? emails.map(e => `- From ${e.from_name || e.from_address}: ${e.subject}`).join('\\n')\n  : 'No urgent unread emails';\n\nconst today = new Date().toISOString().split('T')[0];\nconst dueToday = pipeline.filter(s => s.next_follow_up_date && s.next_follow_up_date <= today);\nconst salesPrioritiesText = dueToday.length\n  ? dueToday.map(s => `- Follow up with ${s.school_name} (${s.status}, ${s.interest_level} interest)`).join('\\n')\n  : 'No follow-ups due today';\n\nconst pipelineCounts = {};\nfor (const s of pipeline) pipelineCounts[s.status] = (pipelineCounts[s.status] || 0) + 1;\nconst pipelineSummaryText = Object.keys(pipelineCounts).length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${count} ${status.replace('_', ' ')}`).join('\\n')\n  : 'No active leads yet';\n\nreturn [{\n  json: {\n    tasks_due: tasksDueText,\n    calendar_today: calendarText,\n    emails_summary: emailsText,\n    follow_ups_due: 'Not yet tracked - CRM module not built yet',\n    sales_priorities: salesPrioritiesText,\n    pipeline_summary: pipelineSummaryText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    pipeline_counts: pipelineCounts\n  }\n}];"
       },
       "id": "7a1d706f-7aa9-4a5f-9b95-7066f2afcc41",
       "name": "Build Briefing Input",
@@ -208,7 +238,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'daily_briefing',\n    user_id: userId,\n    feature: 'daily_briefing',\n    variables: {\n      emails_summary: input.emails_summary,\n      calendar_today: input.calendar_today,\n      tasks_due: input.tasks_due,\n      follow_ups_due: input.follow_ups_due\n    }\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'daily_briefing',\n    user_id: userId,\n    feature: 'daily_briefing',\n    variables: {\n      emails_summary: input.emails_summary,\n      calendar_today: input.calendar_today,\n      tasks_due: input.tasks_due,\n      follow_ups_due: input.follow_ups_due,\n      sales_priorities: input.sales_priorities,\n      pipeline_summary: input.pipeline_summary\n    }\n  }\n}];"
       },
       "id": "9d157b73-eede-4737-9526-1fa74d40fcae",
       "name": "Build AI Request",
@@ -235,7 +265,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const aiResult = $input.first().json;\nconst stats = $('Build Briefing Input').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nconst today = new Date().toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    user_id: userId,\n    briefing_date: today,\n    content_text: aiResult.output,\n    content_json: { completed_count: stats.completed_count, pending_count: stats.pending_count },\n    sent_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const aiResult = $input.first().json;\nconst stats = $('Build Briefing Input').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nconst today = new Date().toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    user_id: userId,\n    briefing_date: today,\n    content_text: aiResult.output,\n    content_json: { completed_count: stats.completed_count, pending_count: stats.pending_count, pipeline_counts: stats.pipeline_counts },\n    sent_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "bf6d3842-d2b2-4aad-b0f0-e6292ad765f2",
       "name": "Prepare Briefing Insert",
@@ -318,6 +348,9 @@
       "main": [[{ "node": "Fetch Pending Count", "type": "main", "index": 0 }]]
     },
     "Fetch Pending Count": {
+      "main": [[{ "node": "Fetch Active Pipeline", "type": "main", "index": 0 }]]
+    },
+    "Fetch Active Pipeline": {
       "main": [[{ "node": "Build Briefing Input", "type": "main", "index": 0 }]]
     },
     "Build Briefing Input": {
