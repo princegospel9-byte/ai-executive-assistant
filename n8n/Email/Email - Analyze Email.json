@@ -1,0 +1,200 @@
+{
+  "name": "Email - Analyze Email",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "a233ae8e-bec0-4182-a14d-83dfd14a5bb8",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-1400, 0],
+      "notes": "Expected input: { email_id }"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $json.email_id }}" },
+            { "name": "select", "value": "*" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c2bc4144-013d-4de6-b67a-92c7e22604ce",
+      "name": "Fetch Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $input.first().json[0];\nif (!email) {\n  throw new Error('Email not found for id: ' + $('When Called').first().json.email_id);\n}\nreturn [{\n  json: {\n    prompt_key: 'email_analysis',\n    user_id: email.user_id,\n    related_record_type: 'email',\n    related_record_id: email.id,\n    feature: 'email_analysis',\n    variables: {\n      from: `${email.from_name || ''} <${email.from_address}>`.trim(),\n      subject: email.subject || '',\n      body: (email.body_text || email.snippet || '').substring(0, 6000),\n      date: email.received_at\n    }\n  }\n}];"
+      },
+      "id": "e82bb3f5-8056-46a4-a254-077e0de8e16e",
+      "name": "Build AI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, 0]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "AI - Process Request"
+        },
+        "options": {}
+      },
+      "id": "b482fee6-c006-46ba-a37f-650f12760614",
+      "name": "Call AI - Process Request",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-800, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResult = $input.first().json;\nconst email = $('Fetch Email').first().json[0];\nconst analysis = aiResult.output;\n\nconst excludedCategories = ['newsletter', 'spam'];\nconst needsDraft = analysis.action_required === true && !excludedCategories.includes((analysis.category || '').toLowerCase());\n\nreturn [{\n  json: {\n    email_id: email.id,\n    user_id: email.user_id,\n    summary: analysis.summary,\n    category: analysis.category,\n    priority: analysis.priority,\n    priority_reason: analysis.priority_reason,\n    sentiment: analysis.sentiment,\n    action_required: analysis.action_required,\n    suggested_deadline: analysis.suggested_deadline,\n    suggested_next_step: analysis.suggested_next_step,\n    labels: analysis.labels || [],\n    model_used: aiResult.usage?.model,\n    prompt_version: aiResult.prompt_version,\n    needs_draft: needsDraft\n  }\n}];"
+      },
+      "id": "7986881d-a378-46c2-9525-901e46b25572",
+      "name": "Prepare Analysis Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 0],
+      "notes": "Drafts are skipped for Newsletter/Spam even if the model marked action_required=true, as a sanity backstop."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/email_analysis?on_conflict=email_id",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ email_id: $json.email_id, user_id: $json.user_id, summary: $json.summary, category: $json.category, priority: $json.priority, priority_reason: $json.priority_reason, sentiment: $json.sentiment, action_required: $json.action_required, suggested_deadline: $json.suggested_deadline, suggested_next_step: $json.suggested_next_step, labels: $json.labels, model_used: $json.model_used, prompt_version: $json.prompt_version }) }}",
+        "options": {}
+      },
+      "id": "38deca85-3fd4-4ff4-9ecb-580d9841cdd4",
+      "name": "Insert Email Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Upsert on email_id - if this email is ever re-analyzed later, it overwrites rather than duplicating."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Prepare Analysis Insert').first().json.needs_draft }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9411d7fa-66ee-4a47-b32a-bad481e39457",
+      "name": "Needs Draft?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { email_id: $('Prepare Analysis Insert').first().json.email_id, tone: 'professional' } }];"
+      },
+      "id": "ea317564-c34d-4c74-b0f1-be381cbcb8f8",
+      "name": "Build Draft Trigger Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -100]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Email - Generate Draft Reply"
+        },
+        "options": {}
+      },
+      "id": "9ddd9dfb-38f5-43a4-99e6-6c9d8805e60a",
+      "name": "Call Generate Draft Reply",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [200, -100]
+    },
+    {
+      "parameters": {},
+      "id": "76dc0f61-49de-4cdd-9576-33825cceea7e",
+      "name": "No Draft Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [0, 100]
+    }
+  ],
+  "connections": {
+    "When Called": {
+      "main": [[{ "node": "Fetch Email", "type": "main", "index": 0 }]]
+    },
+    "Fetch Email": {
+      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+    },
+    "Build AI Request": {
+      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+    },
+    "Call AI - Process Request": {
+      "main": [[{ "node": "Prepare Analysis Insert", "type": "main", "index": 0 }]]
+    },
+    "Prepare Analysis Insert": {
+      "main": [[{ "node": "Insert Email Analysis", "type": "main", "index": 0 }]]
+    },
+    "Insert Email Analysis": {
+      "main": [[{ "node": "Needs Draft?", "type": "main", "index": 0 }]]
+    },
+    "Needs Draft?": {
+      "main": [
+        [{ "node": "Build Draft Trigger Payload", "type": "main", "index": 0 }],
+        [{ "node": "No Draft Needed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Draft Trigger Payload": {
+      "main": [[{ "node": "Call Generate Draft Reply", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

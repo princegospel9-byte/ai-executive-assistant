@@ -1,0 +1,374 @@
+{
+  "name": "Email - Generate Draft Reply",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "9c64cd68-25e3-4a4f-a7a4-65d21ee63d63",
+      "name": "Called Internally",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-2000, -150],
+      "notes": "Used by Email - Analyze Email right after analysis. Expected input: { email_id, tone }"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-generate-draft",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d8eb4499-64f6-4886-9ba5-44e9d80f33c4",
+      "name": "Called From Dashboard (Regenerate)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-2000, 150],
+      "notes": "Used by the dashboard's Regenerate button. Requires header x-automation-secret matching the N8N_WEBHOOK_SECRET variable. Body: { email_id, tone }"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst isWebhook = item.headers !== undefined && item.body !== undefined;\nconst payload = isWebhook ? item.body : item;\nconst providedSecret = isWebhook ? (item.headers['x-automation-secret'] || item.headers['X-Automation-Secret']) : null;\nconst authOk = !isWebhook || providedSecret === $vars.N8N_WEBHOOK_SECRET;\n\nreturn [{\n  json: {\n    email_id: payload.email_id,\n    tone: payload.tone || 'professional',\n    is_webhook: isWebhook,\n    auth_ok: authOk\n  }\n}];"
+      },
+      "id": "d4ab145d-7fb0-4153-99d1-a189a5b0cfb6",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1800, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "8f3156e3-e11f-4844-aaeb-29623d0d6975",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "339e9679-1ee9-4403-99b2-c18e83bcd203",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1400, 150]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/draft_replies",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "email_id", "value": "=eq.{{ $json.email_id }}" },
+            { "name": "status", "value": "eq.pending" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'superseded' }) }}",
+        "options": {}
+      },
+      "id": "308fa2a2-2d11-42a1-a5c6-00527f0b6b29",
+      "name": "Supersede Old Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Harmless no-op if there's no pending draft for this email - only matters when regenerating."
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "action_type", "value": "eq.send_email" },
+            { "name": "related_record_id", "value": "=eq.{{ $('Normalize Input').first().json.email_id }}" },
+            { "name": "status", "value": "eq.pending" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'rejected', decision_note: 'Superseded by draft regeneration', decided_at: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "id": "eb39699c-04ea-4be7-b087-cf686d770581",
+      "name": "Supersede Old Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/emails",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Normalize Input').first().json.email_id }}" },
+            { "name": "select", "value": "*,email_analysis(*)" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "735ca37c-7f11-42f6-8aa0-2d3f9a35cc13",
+      "name": "Fetch Email With Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1000, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst email = Array.isArray(rows) ? rows[0] : rows;\nif (!email) {\n  throw new Error('Email not found for id: ' + $('Normalize Input').first().json.email_id);\n}\nconst analysisRaw = email.email_analysis;\nconst analysis = Array.isArray(analysisRaw) ? analysisRaw[0] : analysisRaw;\nconst tone = $('Normalize Input').first().json.tone;\n\nconst context = analysis\n  ? `Category: ${analysis.category}. Priority: ${analysis.priority}. Summary: ${analysis.summary}`\n  : 'No prior analysis available.';\n\nreturn [{\n  json: {\n    prompt_key: 'email_reply',\n    user_id: email.user_id,\n    related_record_type: 'email',\n    related_record_id: email.id,\n    feature: 'email_reply',\n    model: 'claude-sonnet-5',\n    variables: {\n      from: `${email.from_name || ''} <${email.from_address}>`.trim(),\n      subject: email.subject || '',\n      body: (email.body_text || email.snippet || '').substring(0, 6000),\n      tone,\n      context\n    },\n    email\n  }\n}];"
+      },
+      "id": "d7035261-da47-4bdf-a128-2fa26e3ef4fe",
+      "name": "Build AI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, -150],
+      "notes": "Uses Sonnet 5 rather than AI - Process Request's Opus default - drafting is exactly the kind of per-feature override that workflow was built to allow."
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "AI - Process Request"
+        },
+        "options": {}
+      },
+      "id": "782e4ca8-b375-4cc7-9f55-e3cca9211fe9",
+      "name": "Call AI - Process Request",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-600, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResult = $input.first().json;\nconst built = $('Build AI Request').first().json;\nconst draftText = typeof aiResult.output === 'string' ? aiResult.output : JSON.stringify(aiResult.output);\n\nreturn [{\n  json: {\n    email_id: built.related_record_id,\n    user_id: built.user_id,\n    tone: built.variables.tone,\n    draft_text: draftText,\n    model_used: aiResult.usage?.model,\n    prompt_version: aiResult.prompt_version\n  }\n}];"
+      },
+      "id": "41b73297-7f2b-42be-8244-81cbb15a1597",
+      "name": "Prepare Draft Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/draft_replies",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "9d836a32-7224-4448-a4d4-ed932228b1ad",
+      "name": "Insert Draft Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const draftRows = $input.first().json;\nconst draft = Array.isArray(draftRows) ? draftRows[0] : draftRows;\nconst built = $('Build AI Request').first().json;\nconst email = built.email;\n\nreturn [{\n  json: {\n    user_id: draft.user_id,\n    action_type: 'send_email',\n    payload: {\n      draft_reply_id: draft.id,\n      email_id: email.id,\n      to: email.from_address,\n      subject: email.subject,\n      body: draft.draft_text\n    },\n    related_record_type: 'email',\n    related_record_id: email.id,\n    draft_reply_id: draft.id\n  }\n}];"
+      },
+      "id": "b62148da-5c9f-4574-b2eb-5c5d6937dfda",
+      "name": "Build Approval Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -150]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Core - Request Approval"
+        },
+        "options": {}
+      },
+      "id": "f54e9f18-bb5f-481b-9dcd-a05507956615",
+      "name": "Call Request Approval",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [200, -150]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/draft_replies",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Build Approval Request').first().json.draft_reply_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ approval_id: $json.approval_id }) }}",
+        "options": {}
+      },
+      "id": "84c7a7b9-ac63-470f-9d99-7576f880f062",
+      "name": "Link Approval To Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const built = $('Build Approval Request').first().json;\nreturn [{\n  json: {\n    success: true,\n    draft_reply_id: built.draft_reply_id,\n    draft_text: built.payload.body,\n    tone: $('Build AI Request').first().json.variables.tone\n  }\n}];"
+      },
+      "id": "8acb548e-f0ee-4e6e-be26-130b37722286",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, -150]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "ca28783f-26ce-4a08-8505-74a15faba486",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [800, -150],
+      "notes": "When this workflow was triggered internally (not via webhook), this node is expected to be a harmless no-op and its output still becomes the workflow's return value for the caller."
+    }
+  ],
+  "connections": {
+    "Called Internally": {
+      "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]]
+    },
+    "Called From Dashboard (Regenerate)": {
+      "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]]
+    },
+    "Normalize Input": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Supersede Old Draft", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Supersede Old Draft": {
+      "main": [[{ "node": "Supersede Old Approval", "type": "main", "index": 0 }]]
+    },
+    "Supersede Old Approval": {
+      "main": [[{ "node": "Fetch Email With Analysis", "type": "main", "index": 0 }]]
+    },
+    "Fetch Email With Analysis": {
+      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+    },
+    "Build AI Request": {
+      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+    },
+    "Call AI - Process Request": {
+      "main": [[{ "node": "Prepare Draft Insert", "type": "main", "index": 0 }]]
+    },
+    "Prepare Draft Insert": {
+      "main": [[{ "node": "Insert Draft Reply", "type": "main", "index": 0 }]]
+    },
+    "Insert Draft Reply": {
+      "main": [[{ "node": "Build Approval Request", "type": "main", "index": 0 }]]
+    },
+    "Build Approval Request": {
+      "main": [[{ "node": "Call Request Approval", "type": "main", "index": 0 }]]
+    },
+    "Call Request Approval": {
+      "main": [[{ "node": "Link Approval To Draft", "type": "main", "index": 0 }]]
+    },
+    "Link Approval To Draft": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Build Response": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}
