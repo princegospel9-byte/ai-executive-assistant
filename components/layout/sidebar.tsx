@@ -12,9 +12,12 @@ const NAV_ITEMS = [
   { href: '/school-sales', label: 'School Sales' },
   { href: '/knowledge-base', label: 'Knowledge Base' },
   { href: '/reports', label: 'Reports' },
+  { href: '/finance', label: 'Finance' },
+  { href: '/support', label: 'Support' },
   { href: '/search', label: 'Search' },
   { href: '/job-tracker', label: 'Job Tracker' },
   { href: '/assistant', label: 'AI Advisor' },
+  { href: '/agents', label: 'Agent Team' },
   { href: '/settings', label: 'Settings' },
 ];
 

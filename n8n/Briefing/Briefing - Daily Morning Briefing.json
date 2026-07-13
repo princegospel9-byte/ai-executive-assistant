@@ -228,7 +228,66 @@
     },
     {
       "parameters": {
-        "jsCode": "const tasksDue = $('Fetch Today\\'s Tasks').first().json;\nconst events = $('Fetch Today\\'s Events').first().json;\nconst emails = $('Fetch Important Emails').first().json;\nconst completed = $('Fetch Completed This Week').first().json;\nconst pending = $('Fetch Pending Count').first().json;\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\n\nconst tasksDueText = (tasksDue || []).length\n  ? tasksDue.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleString() : ''})`).join('\\n')\n  : 'None';\n\nconst calendarText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${e.title}${e.location ? ' at ' + e.location : ''}`).join('\\n')\n  : 'No meetings scheduled';\n\nconst emailsText = (emails || []).length\n  ? emails.map(e => `- From ${e.from_name || e.from_address}: ${e.subject}`).join('\\n')\n  : 'No urgent unread emails';\n\nconst today = new Date().toISOString().split('T')[0];\nconst dueToday = pipeline.filter(s => s.next_follow_up_date && s.next_follow_up_date <= today);\nconst salesPrioritiesText = dueToday.length\n  ? dueToday.map(s => `- Follow up with ${s.school_name} (${s.status}, ${s.interest_level} interest)`).join('\\n')\n  : 'No follow-ups due today';\n\nconst pipelineCounts = {};\nfor (const s of pipeline) pipelineCounts[s.status] = (pipelineCounts[s.status] || 0) + 1;\nconst pipelineSummaryText = Object.keys(pipelineCounts).length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${count} ${status.replace('_', ' ')}`).join('\\n')\n  : 'No active leads yet';\n\nreturn [{\n  json: {\n    tasks_due: tasksDueText,\n    calendar_today: calendarText,\n    emails_summary: emailsText,\n    follow_ups_due: 'Not yet tracked - CRM module not built yet',\n    sales_priorities: salesPrioritiesText,\n    pipeline_summary: pipelineSummaryText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    pipeline_counts: pipelineCounts\n  }\n}];"
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agent_outputs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "created_at", "value": "=gte.{{ new Date(Date.now() - 24 * 3600000).toISOString() }}" },
+            { "name": "select", "value": "status,agent_tasks(agents(name))" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "88a4c1e2-3f5a-4b1a-9d0e-2f6a7b8c9d0f",
+      "name": "Fetch Recent Agent Outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1050, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Phase 7 addition - feeds the agent-team summary section (daily_briefing v3) instead of a second separate 'Daily Agent Briefing' workflow."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "in.(open,awaiting_approval)" },
+            { "name": "select", "value": "id" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "88a4c1e2-3f5a-4b1a-9d0e-2f6a7b8c9d10",
+      "name": "Fetch Open Tickets Count",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1025, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const tasksDue = $('Fetch Today\\'s Tasks').first().json;\nconst events = $('Fetch Today\\'s Events').first().json;\nconst emails = $('Fetch Important Emails').first().json;\nconst completed = $('Fetch Completed This Week').first().json;\nconst pending = $('Fetch Pending Count').first().json;\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\nconst agentOutputs = $('Fetch Recent Agent Outputs').first().json || [];\nconst openTickets = $('Fetch Open Tickets Count').first().json || [];\n\nconst tasksDueText = (tasksDue || []).length\n  ? tasksDue.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleString() : ''})`).join('\\n')\n  : 'None';\n\nconst calendarText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${e.title}${e.location ? ' at ' + e.location : ''}`).join('\\n')\n  : 'No meetings scheduled';\n\nconst emailsText = (emails || []).length\n  ? emails.map(e => `- From ${e.from_name || e.from_address}: ${e.subject}`).join('\\n')\n  : 'No urgent unread emails';\n\nconst today = new Date().toISOString().split('T')[0];\nconst dueToday = pipeline.filter(s => s.next_follow_up_date && s.next_follow_up_date <= today);\nconst salesPrioritiesText = dueToday.length\n  ? dueToday.map(s => `- Follow up with ${s.school_name} (${s.status}, ${s.interest_level} interest)`).join('\\n')\n  : 'No follow-ups due today';\n\nconst pipelineCounts = {};\nfor (const s of pipeline) pipelineCounts[s.status] = (pipelineCounts[s.status] || 0) + 1;\nconst pipelineSummaryText = Object.keys(pipelineCounts).length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${count} ${status.replace('_', ' ')}`).join('\\n')\n  : 'No active leads yet';\n\nconst agentCounts = {};\nfor (const o of agentOutputs) {\n  const name = o.agent_tasks?.agents?.name || 'Unknown agent';\n  agentCounts[name] = agentCounts[name] || { pending: 0, info: 0 };\n  if (o.status === 'pending_approval') agentCounts[name].pending++;\n  else agentCounts[name].info++;\n}\nconst agentLines = Object.entries(agentCounts).map(([name, c]) => {\n  const parts = [];\n  if (c.pending) parts.push(`${c.pending} awaiting your approval`);\n  if (c.info) parts.push(`${c.info} recommendation(s)`);\n  return `- ${name}: ${parts.join(', ')}`;\n});\nif ((openTickets || []).length) agentLines.push(`- Support: ${openTickets.length} open ticket(s)`);\nconst agentSummaryText = agentLines.length ? agentLines.join('\\n') : 'No agent activity in the last 24 hours.';\n\nreturn [{\n  json: {\n    tasks_due: tasksDueText,\n    calendar_today: calendarText,\n    emails_summary: emailsText,\n    follow_ups_due: 'Not yet tracked - CRM module not built yet',\n    sales_priorities: salesPrioritiesText,\n    pipeline_summary: pipelineSummaryText,\n    agent_summary: agentSummaryText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    pipeline_counts: pipelineCounts\n  }\n}];"
       },
       "id": "7a1d706f-7aa9-4a5f-9b95-7066f2afcc41",
       "name": "Build Briefing Input",
@@ -238,7 +297,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'daily_briefing',\n    user_id: userId,\n    feature: 'daily_briefing',\n    variables: {\n      emails_summary: input.emails_summary,\n      calendar_today: input.calendar_today,\n      tasks_due: input.tasks_due,\n      follow_ups_due: input.follow_ups_due,\n      sales_priorities: input.sales_priorities,\n      pipeline_summary: input.pipeline_summary\n    }\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'daily_briefing',\n    user_id: userId,\n    feature: 'daily_briefing',\n    variables: {\n      emails_summary: input.emails_summary,\n      calendar_today: input.calendar_today,\n      tasks_due: input.tasks_due,\n      follow_ups_due: input.follow_ups_due,\n      sales_priorities: input.sales_priorities,\n      pipeline_summary: input.pipeline_summary,\n      agent_summary: input.agent_summary\n    }\n  }\n}];"
       },
       "id": "9d157b73-eede-4737-9526-1fa74d40fcae",
       "name": "Build AI Request",
@@ -351,6 +410,12 @@
       "main": [[{ "node": "Fetch Active Pipeline", "type": "main", "index": 0 }]]
     },
     "Fetch Active Pipeline": {
+      "main": [[{ "node": "Fetch Recent Agent Outputs", "type": "main", "index": 0 }]]
+    },
+    "Fetch Recent Agent Outputs": {
+      "main": [[{ "node": "Fetch Open Tickets Count", "type": "main", "index": 0 }]]
+    },
+    "Fetch Open Tickets Count": {
       "main": [[{ "node": "Build Briefing Input", "type": "main", "index": 0 }]]
     },
     "Build Briefing Input": {

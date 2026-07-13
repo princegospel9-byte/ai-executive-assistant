@@ -8,7 +8,7 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [-1600, 0],
-      "notes": "Expected input: { prompt_key, variables: {...}, user_id, related_record_type?, related_record_id?, feature?, model?, max_tokens? }"
+      "notes": "Expected input: { prompt_key, variables: {...}, user_id, related_record_type?, related_record_id?, feature?, model?, max_tokens?, enable_web_search? }. enable_web_search added in Phase 7 for the Research Agent - adds Claude's server-side web search tool to the call, everyone else leaves it unset."
     },
     {
       "parameters": {
@@ -52,7 +52,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const promptRow = $input.first().json[0];\nconst trigger = $('Capture Start').first().json;\nif (!promptRow) {\n  throw new Error(`No active prompt found for prompt_key: ${trigger.prompt_key}`);\n}\nconst variables = trigger.variables || {};\nfunction fill(template, vars) {\n  return template.replace(/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}/g, (match, key) => vars[key] !== undefined ? String(vars[key]) : '');\n}\nreturn [{\n  json: {\n    system_prompt: promptRow.system_prompt,\n    user_message: fill(promptRow.user_prompt_template, variables),\n    prompt_key: promptRow.prompt_key,\n    prompt_version: promptRow.version,\n    model: trigger.model || 'claude-opus-4-8',\n    max_tokens: trigger.max_tokens || 2048\n  }\n}];"
+        "jsCode": "const promptRow = $input.first().json[0];\nconst trigger = $('Capture Start').first().json;\nif (!promptRow) {\n  throw new Error(`No active prompt found for prompt_key: ${trigger.prompt_key}`);\n}\nconst variables = trigger.variables || {};\nfunction fill(template, vars) {\n  return template.replace(/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}/g, (match, key) => vars[key] !== undefined ? String(vars[key]) : '');\n}\nreturn [{\n  json: {\n    system_prompt: promptRow.system_prompt,\n    user_message: fill(promptRow.user_prompt_template, variables),\n    prompt_key: promptRow.prompt_key,\n    prompt_version: promptRow.version,\n    model: trigger.model || 'claude-opus-4-8',\n    max_tokens: trigger.max_tokens || 2048,\n    enable_web_search: !!trigger.enable_web_search\n  }\n}];"
       },
       "id": "e3a795bb-0057-42f6-afc1-93839606c85b",
       "name": "Fill Template",
@@ -75,7 +75,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $json.model, max_tokens: $json.max_tokens, system: $json.system_prompt, messages: [{ role: 'user', content: $json.user_message }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: $json.model, max_tokens: $json.max_tokens, system: $json.system_prompt, messages: [{ role: 'user', content: $json.user_message }], ...($json.enable_web_search ? { tools: [{ type: 'web_search_20260209', name: 'web_search' }] } : {}) }) }}",
         "options": {}
       },
       "id": "535a77f1-fdf4-4bb0-a99a-fcbfad4fa9ee",
@@ -86,11 +86,11 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Step 3 of the AI orchestration pattern. Model/max_tokens come from Fill Template so future callers can override per feature (e.g. cheaper model for simple classification)."
+      "notes": "Step 3 of the AI orchestration pattern. Model/max_tokens come from Fill Template so future callers can override per feature (e.g. cheaper model for simple classification). Phase 7: tools only added when enable_web_search is set (Research Agent) - server-side tool, Claude searches and answers in the same response, no client-side tool loop needed."
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\n\nif (response.stop_reason === 'refusal') {\n  throw new Error('Claude refused the request: ' + (response.stop_details?.explanation || 'no explanation provided'));\n}\n\nconst textBlock = (response.content || []).find(b => b.type === 'text');\nif (!textBlock) {\n  throw new Error('Claude response contained no text content.');\n}\n\nlet output = textBlock.text;\nlet parsed = null;\ntry {\n  parsed = JSON.parse(output);\n} catch (e) {\n  // Not every prompt expects JSON (daily_briefing, knowledge_search are prose) - that's fine.\n}\n\nreturn [{\n  json: {\n    output: parsed ?? output,\n    is_structured: parsed !== null,\n    raw_text: output,\n    model: response.model,\n    input_tokens: response.usage?.input_tokens ?? null,\n    output_tokens: response.usage?.output_tokens ?? null\n  }\n}];"
+        "jsCode": "const response = $input.first().json;\n\nif (response.stop_reason === 'refusal') {\n  throw new Error('Claude refused the request: ' + (response.stop_details?.explanation || 'no explanation provided'));\n}\n\nconst textBlocks = (response.content || []).filter(b => b.type === 'text');\nif (textBlocks.length === 0) {\n  throw new Error('Claude response contained no text content.');\n}\n\n// Concatenate rather than take the first block - when web search is enabled (Phase 7, Research Agent) Claude can interleave multiple text blocks with search results in one response.\nlet output = textBlocks.map(b => b.text).join('\\n\\n');\nlet parsed = null;\ntry {\n  parsed = JSON.parse(output);\n} catch (e) {\n  // Not every prompt expects JSON (daily_briefing, knowledge_search are prose) - that's fine.\n}\n\nreturn [{\n  json: {\n    output: parsed ?? output,\n    is_structured: parsed !== null,\n    raw_text: output,\n    model: response.model,\n    input_tokens: response.usage?.input_tokens ?? null,\n    output_tokens: response.usage?.output_tokens ?? null\n  }\n}];"
       },
       "id": "b13ef637-86b3-43b9-9919-4c1e0d664182",
       "name": "Validate & Parse Response",

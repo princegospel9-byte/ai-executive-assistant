@@ -156,7 +156,38 @@
     },
     {
       "parameters": {
-        "jsCode": "const schools = $('Fetch All Schools').first().json || [];\nconst tasksCompleted = $('Fetch Tasks Completed').first().json || [];\nconst documents = $('Fetch Documents This Month').first().json || [];\nconst revenue = $('Fetch Revenue Notes').first().json || [];\n\nconst now = new Date();\nconst periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst periodEnd = new Date(now.getFullYear(), now.getMonth(), 0);\n\nconst newLeads = schools.filter(s => new Date(s.created_at) >= periodStart);\n// Best-effort proxy, not a real status-history log: a school counts as\n// converted/lost 'this month' if its status matches AND it was touched\n// (updated_at) within the period - see documentation/knowledge-base-module.md.\nconst converted = schools.filter(s => s.status === 'customer' && new Date(s.updated_at) >= periodStart);\nconst lost = schools.filter(s => s.status === 'lost_lead' && new Date(s.updated_at) >= periodStart);\n\nconst pipelineCounts = schools.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {});\nconst pipelineMovementText = Object.entries(pipelineCounts).map(([status, count]) => `- ${status}: ${count}`).join('\\n') || 'No pipeline data.';\n\nconst kbActivityText = `${documents.length} document(s) uploaded, ${documents.filter(d => d.status === 'ready').length} processed successfully.`;\n\nconst revenueText = revenue.length\n  ? revenue.map(r => `- ${r.key}: ${r.value}`).join('\\n')\n  : 'Not tracked yet.';\n\nreturn [{\n  json: {\n    period_start: periodStart.toISOString().split('T')[0],\n    period_end: periodEnd.toISOString().split('T')[0],\n    period_label: periodStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),\n    pipeline_movement: pipelineMovementText,\n    pipeline_counts: pipelineCounts,\n    new_leads_count: newLeads.length,\n    converted_count: converted.length,\n    lost_count: lost.length,\n    tasks_completed_count: tasksCompleted.length,\n    kb_activity_summary: kbActivityText,\n    revenue_notes: revenueText\n  }\n}];"
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/finance_entries",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "occurred_on", "value": "=gte.{{ new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().split('T')[0] }}" },
+            { "name": "occurred_on", "value": "=lte.{{ new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().split('T')[0] }}" },
+            { "name": "select", "value": "entry_type,category,amount,currency" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e4e4f4a4-0004-4004-8004-0000000000f1",
+      "name": "Fetch Finance Entries This Month",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-900, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Phase 7 addition: finance_entries now exists (it didn't in Phase 6, when revenue_notes only had business_memory to draw on). Real income/expense totals take priority over the manual business_memory notes when entries exist."
+    },
+    {
+      "parameters": {
+        "jsCode": "const schools = $('Fetch All Schools').first().json || [];\nconst tasksCompleted = $('Fetch Tasks Completed').first().json || [];\nconst documents = $('Fetch Documents This Month').first().json || [];\nconst revenue = $('Fetch Revenue Notes').first().json || [];\nconst financeEntries = $input.first().json || [];\n\nconst now = new Date();\nconst periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst periodEnd = new Date(now.getFullYear(), now.getMonth(), 0);\n\nconst newLeads = schools.filter(s => new Date(s.created_at) >= periodStart);\n// Best-effort proxy, not a real status-history log: a school counts as\n// converted/lost 'this month' if its status matches AND it was touched\n// (updated_at) within the period - see documentation/knowledge-base-module.md.\nconst converted = schools.filter(s => s.status === 'customer' && new Date(s.updated_at) >= periodStart);\nconst lost = schools.filter(s => s.status === 'lost_lead' && new Date(s.updated_at) >= periodStart);\n\nconst pipelineCounts = schools.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {});\nconst pipelineMovementText = Object.entries(pipelineCounts).map(([status, count]) => `- ${status}: ${count}`).join('\\n') || 'No pipeline data.';\n\nconst kbActivityText = `${documents.length} document(s) uploaded, ${documents.filter(d => d.status === 'ready').length} processed successfully.`;\n\nlet revenueText;\nif (financeEntries.length) {\n  const income = financeEntries.filter(e => e.entry_type === 'income').reduce((sum, e) => sum + Number(e.amount), 0);\n  const expenses = financeEntries.filter(e => e.entry_type === 'expense').reduce((sum, e) => sum + Number(e.amount), 0);\n  const currency = financeEntries[0].currency;\n  revenueText = `Income: ${currency} ${income.toFixed(2)}\\nExpenses: ${currency} ${expenses.toFixed(2)}\\nNet: ${currency} ${(income - expenses).toFixed(2)}`;\n} else {\n  revenueText = revenue.length\n    ? revenue.map(r => `- ${r.key}: ${r.value}`).join('\\n')\n    : 'Not tracked yet.';\n}\n\nreturn [{\n  json: {\n    period_start: periodStart.toISOString().split('T')[0],\n    period_end: periodEnd.toISOString().split('T')[0],\n    period_label: periodStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),\n    pipeline_movement: pipelineMovementText,\n    pipeline_counts: pipelineCounts,\n    new_leads_count: newLeads.length,\n    converted_count: converted.length,\n    lost_count: lost.length,\n    tasks_completed_count: tasksCompleted.length,\n    kb_activity_summary: kbActivityText,\n    revenue_notes: revenueText\n  }\n}];"
       },
       "id": "e4e4f4a4-0004-4004-8004-000000000007",
       "name": "Build Report Input",
@@ -311,6 +342,9 @@
       "main": [[{ "node": "Fetch Revenue Notes", "type": "main", "index": 0 }]]
     },
     "Fetch Revenue Notes": {
+      "main": [[{ "node": "Fetch Finance Entries This Month", "type": "main", "index": 0 }]]
+    },
+    "Fetch Finance Entries This Month": {
       "main": [[{ "node": "Build Report Input", "type": "main", "index": 0 }]]
     },
     "Build Report Input": {

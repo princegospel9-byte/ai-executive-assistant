@@ -28,3 +28,21 @@ export async function askAdvisor(question: string) {
   const result = await callN8nWebhook('kb-ask-advisor', { question });
   return result as { success: boolean; answer: string; sources: string[] };
 }
+
+export type AgentRun = {
+  agent_key: string;
+  agent_name: string;
+  output_text: string;
+  requires_approval: boolean;
+  approval_id: string | null;
+};
+
+export async function orchestrateRequest(request: string) {
+  const result = await callN8nWebhook('agent-orchestrate', { request });
+  return result as { success: boolean; combined_result: string; agent_runs: AgentRun[] };
+}
+
+export async function decideAgentOutput(approvalId: string, decision: 'approved' | 'rejected') {
+  const result = await callN8nWebhook('agent-decision', { approval_id: approvalId, decision });
+  return result as { success: boolean; status: string };
+}
