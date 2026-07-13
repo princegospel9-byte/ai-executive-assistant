@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PriorityBadge } from '@/components/email/priority-badge';
 import { Badge } from '@/components/ui/badge';
 import { DraftPanel } from '@/components/email/draft-panel';
+import { CreateTaskButton } from '@/components/email/create-task-button';
 
 type Attachment = {
   id: string;
@@ -83,6 +84,11 @@ export default async function EmailDetailPage({
                 <span className="font-medium text-neutral-900">Suggested deadline:</span>{' '}
                 {analysis.suggested_deadline}
               </p>
+            )}
+            {analysis.action_required && (
+              <div className="pt-1">
+                <CreateTaskButton emailId={email.id} />
+              </div>
             )}
           </div>
         )}

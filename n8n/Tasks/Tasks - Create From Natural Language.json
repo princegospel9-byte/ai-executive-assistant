@@ -1,0 +1,331 @@
+{
+  "name": "Tasks - Create From Natural Language",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "task-create-nl",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0d2fd97f-512b-4cc6-bf8d-0dcf0bb6d0e1",
+      "name": "Called From Dashboard (Quick Add)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1800, 0],
+      "notes": "Requires header x-automation-secret. Body: { text }"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { text: payload.text, auth_ok: authOk } }];"
+      },
+      "id": "62382dcb-4f8e-456a-af81-28709f433504",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f95f5ab7-3eb9-49b8-a5a5-86edc7e5581a",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1400, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "0f364b41-0f47-44aa-8908-e0329162c953",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1200, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "select", "value": "id" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a9aa13b6-fd7f-4372-a58f-a85ee01edc0d",
+      "name": "Get Primary User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];\nconst userId = $('Get Primary User').first().json[0].id;\nconst text = $('Normalize & Check Auth').first().json.text;\n\nreturn [{\n  json: {\n    prompt_key: 'natural_language_task',\n    user_id: userId,\n    feature: 'natural_language_task',\n    variables: {\n      text,\n      current_date: now.toISOString().split('T')[0],\n      current_day_name: dayNames[now.getDay()]\n    }\n  }\n}];"
+      },
+      "id": "1faf54a0-0c5e-4300-8235-1638c01e5bf5",
+      "name": "Build AI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, -150]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "AI - Process Request"
+        },
+        "options": {}
+      },
+      "id": "e3029b83-afd7-4b70-aee5-5e7dffe57ab3",
+      "name": "Call AI - Process Request",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-800, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResult = $input.first().json;\nconst output = aiResult.output;\nconst userId = $('Build AI Request').first().json.user_id;\n\nfunction computeNextRun(type, day, time) {\n  const [h, m] = (time || '09:00').split(':').map(Number);\n  const now = new Date();\n  const next = new Date(now);\n  next.setHours(h, m, 0, 0);\n\n  if (type === 'daily') {\n    if (next <= now) next.setDate(next.getDate() + 1);\n  } else if (type === 'weekly') {\n    const targetDay = day ?? 1;\n    let diff = (targetDay - next.getDay() + 7) % 7;\n    if (diff === 0 && next <= now) diff = 7;\n    next.setDate(next.getDate() + diff);\n  } else if (type === 'monthly') {\n    const targetDay = day ?? 1;\n    next.setDate(targetDay);\n    if (next <= now) next.setMonth(next.getMonth() + 1);\n  }\n  return next.toISOString();\n}\n\nif (output.is_recurring) {\n  return [{\n    json: {\n      _kind: 'recurring',\n      user_id: userId,\n      title: output.title,\n      description: output.description,\n      category: output.category,\n      priority: output.priority,\n      recurrence_type: output.recurrence_type,\n      recurrence_day: output.recurrence_day,\n      recurrence_time: output.recurrence_time || '09:00',\n      next_run_at: computeNextRun(output.recurrence_type, output.recurrence_day, output.recurrence_time)\n    }\n  }];\n}\n\nlet dueDate = null;\nif (output.due_date) {\n  dueDate = output.due_time ? `${output.due_date}T${output.due_time}:00` : `${output.due_date}T17:00:00`;\n}\n\nlet reminderAt = null;\nif (dueDate && output.reminder_offset_minutes) {\n  reminderAt = new Date(new Date(dueDate).getTime() - output.reminder_offset_minutes * 60000).toISOString();\n}\n\nreturn [{\n  json: {\n    _kind: 'oneoff',\n    user_id: userId,\n    title: output.title,\n    description: output.description,\n    category: output.category,\n    priority: output.priority,\n    ai_priority_reason: output.priority_reason,\n    due_date: dueDate,\n    reminder_at: reminderAt,\n    ai_suggested: true\n  }\n}];"
+      },
+      "id": "60a6f229-9ddb-4330-bdac-3c8949144386",
+      "name": "Prepare Task Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, -150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json._kind }}",
+              "rightValue": "recurring",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "df92de3f-3129-4a6d-a4c9-e9194aaa5a93",
+      "name": "Is Recurring?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-400, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/recurring_tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, title: $json.title, description: $json.description, category: $json.category, priority: $json.priority, recurrence_type: $json.recurrence_type, recurrence_day: $json.recurrence_day, recurrence_time: $json.recurrence_time, next_run_at: $json.next_run_at }) }}",
+        "options": {}
+      },
+      "id": "169dc482-15de-4d9a-82fd-c2e668dddacc",
+      "name": "Insert Recurring Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, -300],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, title: $json.title, description: $json.description, category: $json.category, priority: $json.priority, ai_priority_reason: $json.ai_priority_reason, due_date: $json.due_date, reminder_at: $json.reminder_at, ai_suggested: $json.ai_suggested }) }}",
+        "options": {}
+      },
+      "id": "5f1d276e-bc5a-4159-91d3-da31a0bcbbcb",
+      "name": "Insert Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst task = Array.isArray(rows) ? rows[0] : rows;\nconst prepared = $('Prepare Task Insert').first().json;\nif (!prepared.reminder_at) return [];\nreturn [{\n  json: {\n    user_id: task.user_id,\n    task_id: task.id,\n    remind_at: prepared.reminder_at,\n    notification_type: 'in_app'\n  }\n}];"
+      },
+      "id": "44399370-d205-46b4-b33b-4221fd3c9254",
+      "name": "Prepare Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 100],
+      "notes": "Returns zero items when no reminder was requested - Insert Reminder simply doesn't run, no error."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "c40858e5-b402-422e-8cb0-c49bfa254ae0",
+      "name": "Insert Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, 100],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst rt = Array.isArray(rows) ? rows[0] : rows;\nreturn [{ json: { success: true, kind: 'recurring_task', recurring_task_id: rt.id, title: rt.title, next_run_at: rt.next_run_at } }];"
+      },
+      "id": "d02cc01d-649e-48c8-9392-ab7fb3e38f07",
+      "name": "Build Response (Recurring)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst task = Array.isArray(rows) ? rows[0] : rows;\nreturn [{ json: { success: true, kind: 'task', task_id: task.id, title: task.title, priority: task.priority, due_date: task.due_date } }];"
+      },
+      "id": "e5ef5fb6-a56a-4bca-944b-d17038cae4b1",
+      "name": "Build Response (Task)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -50]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "29d377e2-34e3-4b53-8218-b9e7c684da0b",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [400, -150]
+    }
+  ],
+  "connections": {
+    "Called From Dashboard (Quick Add)": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Normalize & Check Auth": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Primary User": {
+      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+    },
+    "Build AI Request": {
+      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+    },
+    "Call AI - Process Request": {
+      "main": [[{ "node": "Prepare Task Insert", "type": "main", "index": 0 }]]
+    },
+    "Prepare Task Insert": {
+      "main": [[{ "node": "Is Recurring?", "type": "main", "index": 0 }]]
+    },
+    "Is Recurring?": {
+      "main": [
+        [{ "node": "Insert Recurring Task", "type": "main", "index": 0 }],
+        [{ "node": "Insert Task", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert Recurring Task": {
+      "main": [[{ "node": "Build Response (Recurring)", "type": "main", "index": 0 }]]
+    },
+    "Insert Task": {
+      "main": [
+        [
+          { "node": "Prepare Reminder", "type": "main", "index": 0 },
+          { "node": "Build Response (Task)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prepare Reminder": {
+      "main": [[{ "node": "Insert Reminder", "type": "main", "index": 0 }]]
+    },
+    "Build Response (Recurring)": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    },
+    "Build Response (Task)": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

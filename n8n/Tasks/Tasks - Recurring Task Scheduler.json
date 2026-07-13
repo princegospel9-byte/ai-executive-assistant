@@ -1,0 +1,158 @@
+{
+  "name": "Tasks - Recurring Task Scheduler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours" }] }
+      },
+      "id": "e159ba60-0c31-4245-92ac-39ecd7ad8151",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1000, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/recurring_tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "is_active", "value": "eq.true" },
+            { "name": "next_run_at", "value": "=lte.{{ new Date().toISOString() }}" },
+            { "name": "select", "value": "*" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a4b4b52a-d86b-45eb-9c26-bfed48c01c0b",
+      "name": "Fetch Due Recurring Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-800, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nreturn [{ json: { items: Array.isArray(response) ? response : [] } }];"
+      },
+      "id": "c1a2b3d4-1111-4a2b-9c3d-4e5f6a7b8c9d",
+      "name": "Normalize List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-700, 0]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "id": "0fc3da6e-9b50-4826-a4f7-bf0718ad0348",
+      "name": "Split Out Due Tasks",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rt = $input.first().json;\nconst prev = new Date(rt.next_run_at);\nconst next = new Date(prev);\nif (rt.recurrence_type === 'daily') next.setDate(next.getDate() + 1);\nelse if (rt.recurrence_type === 'weekly') next.setDate(next.getDate() + 7);\nelse if (rt.recurrence_type === 'monthly') next.setMonth(next.getMonth() + 1);\n\nreturn [{\n  json: {\n    recurring_task_id: rt.id,\n    user_id: rt.user_id,\n    title: rt.title,\n    description: rt.description,\n    category: rt.category,\n    priority: rt.priority,\n    next_run_at: next.toISOString()\n  }\n}];"
+      },
+      "id": "05f7a2d5-e383-4812-a413-97d356117ce8",
+      "name": "Compute Advance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 0],
+      "notes": "Advances by exactly one interval from the stored next_run_at, not from 'now' - avoids drift if the scheduler is ever late."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, title: $json.title, description: $json.description, category: $json.category, priority: $json.priority, ai_suggested: true }) }}",
+        "options": {}
+      },
+      "id": "7e73f460-d6f5-4760-b660-b906010ce6ce",
+      "name": "Insert Task From Recurring",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/recurring_tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $json.recurring_task_id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ next_run_at: $json.next_run_at, last_run_at: new Date().toISOString() }) }}",
+        "options": {}
+      },
+      "id": "b5b2a48e-9deb-4641-8eed-fa80c10cb1e4",
+      "name": "Update Recurring Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [[{ "node": "Fetch Due Recurring Tasks", "type": "main", "index": 0 }]]
+    },
+    "Fetch Due Recurring Tasks": {
+      "main": [[{ "node": "Normalize List", "type": "main", "index": 0 }]]
+    },
+    "Normalize List": {
+      "main": [[{ "node": "Split Out Due Tasks", "type": "main", "index": 0 }]]
+    },
+    "Split Out Due Tasks": {
+      "main": [[{ "node": "Compute Advance", "type": "main", "index": 0 }]]
+    },
+    "Compute Advance": {
+      "main": [[{ "node": "Insert Task From Recurring", "type": "main", "index": 0 }]]
+    },
+    "Insert Task From Recurring": {
+      "main": [[{ "node": "Update Recurring Task", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

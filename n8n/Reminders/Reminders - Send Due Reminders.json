@@ -1,0 +1,259 @@
+{
+  "name": "Reminders - Send Due Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
+      },
+      "id": "38dc7c4c-c053-46ec-ac94-d6deb83419e0",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "eq.pending" },
+            { "name": "remind_at", "value": "=lte.{{ new Date().toISOString() }}" },
+            { "name": "select", "value": "*,tasks(title,due_date),calendar_events(title,start_time,location)" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "95f60330-0238-4dca-880e-4800e54984a4",
+      "name": "Fetch Due Reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1400, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nreturn [{ json: { items: Array.isArray(response) ? response : [] } }];"
+      },
+      "id": "b68685cb-6faf-43c5-b7ac-d8b139e24193",
+      "name": "Normalize List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1200, 0]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "id": "07f45d30-2f92-4699-8185-16b4c0322e2a",
+      "name": "Split Out Reminders",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-1000, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reminder = $input.first().json;\nconst taskRaw = reminder.tasks;\nconst task = Array.isArray(taskRaw) ? taskRaw[0] : taskRaw;\nconst eventRaw = reminder.calendar_events;\nconst event = Array.isArray(eventRaw) ? eventRaw[0] : eventRaw;\n\nlet title, message;\nif (task) {\n  title = 'Task reminder';\n  message = `\"${task.title}\"${task.due_date ? ` is due ${new Date(task.due_date).toLocaleString()}` : ''}.`;\n} else if (event) {\n  const minutesUntil = Math.round((new Date(event.start_time).getTime() - Date.now()) / 60000);\n  title = 'Upcoming meeting';\n  message = `\"${event.title}\" starts in about ${minutesUntil} minutes${event.location ? ` at ${event.location}` : ''}.`;\n} else {\n  title = 'Reminder';\n  message = 'You set a reminder for now.';\n}\n\nreturn [{\n  json: {\n    reminder_id: reminder.id,\n    user_id: reminder.user_id,\n    title,\n    message,\n    notification_type: reminder.notification_type\n  }\n}];"
+      },
+      "id": "6ef21824-99b5-49a0-8dec-45236b97f355",
+      "name": "Build Reminder Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const built = $input.first().json;\nreturn [{\n  json: {\n    user_id: built.user_id,\n    title: built.title,\n    message: built.message,\n    severity: 'info',\n    channel: 'in_app',\n    related_record_type: 'reminder',\n    related_record_id: built.reminder_id\n  }\n}];"
+      },
+      "id": "7dc422d4-1de4-4d1d-ae5e-8efaad20c7aa",
+      "name": "Build Notification Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 0],
+      "notes": "In-app notification always happens regardless of notification_type - email/whatsapp are additional, not exclusive."
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "Notifications - Send Notification"
+        },
+        "options": {}
+      },
+      "id": "2219d44f-2231-4e01-aed4-de6a50a70b7d",
+      "name": "Notify",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-400, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Build Reminder Message').first().json.notification_type }}",
+              "rightValue": "email",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bda4c3ff-257d-4896-a9e5-c08eece0dad2",
+      "name": "Send Email Too?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/email_accounts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "is_active", "value": "eq.true" },
+            { "name": "select", "value": "email_address" },
+            { "name": "limit", "value": "1" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "32039505-9a28-4d48-9070-23421ad41c1d",
+      "name": "Get Send-To Address",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const built = $('Build Reminder Message').first().json;\nconst toAddress = $input.first().json[0]?.email_address;\nif (!toAddress) return [];\n\nconst rawMessage = [\n  `To: ${toAddress}`,\n  `Subject: ${built.title}`,\n  'Content-Type: text/plain; charset=utf-8',\n  '',\n  built.message\n].join('\\r\\n');\n\nconst base64url = Buffer.from(rawMessage).toString('base64')\n  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\n\nreturn [{ json: { raw: base64url } }];"
+      },
+      "id": "eeb93c4e-7e89-4e4f-a024-15793dbfcbab",
+      "name": "Build Raw Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, -150],
+      "notes": "Returns zero items (skips the send) if there's no connected email account yet - no error."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $json.raw }) }}",
+        "options": {}
+      },
+      "id": "1b0efa7e-1b07-4938-be45-87b331b8cc64",
+      "name": "Send Reminder Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, -150],
+      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $('Build Reminder Message').first().json.reminder_id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'sent' }) }}",
+        "options": {}
+      },
+      "id": "e55be64f-c75b-43a6-a6f8-9287d3c91749",
+      "name": "Mark Reminder Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [[{ "node": "Fetch Due Reminders", "type": "main", "index": 0 }]]
+    },
+    "Fetch Due Reminders": {
+      "main": [[{ "node": "Normalize List", "type": "main", "index": 0 }]]
+    },
+    "Normalize List": {
+      "main": [[{ "node": "Split Out Reminders", "type": "main", "index": 0 }]]
+    },
+    "Split Out Reminders": {
+      "main": [[{ "node": "Build Reminder Message", "type": "main", "index": 0 }]]
+    },
+    "Build Reminder Message": {
+      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Notification Payload": {
+      "main": [[{ "node": "Notify", "type": "main", "index": 0 }]]
+    },
+    "Notify": {
+      "main": [[{ "node": "Send Email Too?", "type": "main", "index": 0 }]]
+    },
+    "Send Email Too?": {
+      "main": [
+        [{ "node": "Get Send-To Address", "type": "main", "index": 0 }],
+        [{ "node": "Mark Reminder Sent", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Send-To Address": {
+      "main": [[{ "node": "Build Raw Email", "type": "main", "index": 0 }]]
+    },
+    "Build Raw Email": {
+      "main": [[{ "node": "Send Reminder Email", "type": "main", "index": 0 }]]
+    },
+    "Send Reminder Email": {
+      "main": [[{ "node": "Mark Reminder Sent", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}
