@@ -12,6 +12,7 @@ const SECTIONS: { key: keyof SearchResults; label: string }[] = [
   { key: 'calendarEvents', label: 'Calendar events' },
   { key: 'emails', label: 'Emails' },
   { key: 'documents', label: 'Documents' },
+  { key: 'media', label: 'Images' },
 ];
 
 export function SearchBox() {

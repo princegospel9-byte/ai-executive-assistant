@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: '/job-tracker', label: 'Job Tracker' },
   { href: '/assistant', label: 'AI Advisor' },
   { href: '/agents', label: 'Agent Team' },
+  { href: '/voice', label: 'Voice' },
   { href: '/settings', label: 'Settings' },
 ];
 

@@ -1,9 +1,19 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { askAdvisor, orchestrateRequest, decideAgentOutput, type AgentRun } from '@/app/(dashboard)/assistant/actions';
+import { MicButton } from '@/components/voice/mic-button';
+import { playTts } from '@/lib/voice/play-tts';
+import {
+  askAdvisor,
+  orchestrateRequest,
+  decideAgentOutput,
+  startVoiceSession,
+  logVoiceTranscript,
+  endVoiceSession,
+  type AgentRun,
+} from '@/app/(dashboard)/assistant/actions';
 
 const EXAMPLE_QUESTIONS = [
   'Which schools should I follow up with this week?',
@@ -28,8 +38,23 @@ export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState('');
   const [mode, setMode] = useState<'ask' | 'delegate'>('ask');
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (sessionIdRef.current) endVoiceSession(sessionIdRef.current);
+    };
+  }, []);
+
+  async function ensureSession() {
+    if (!sessionIdRef.current) {
+      sessionIdRef.current = await startVoiceSession('conversation');
+    }
+    return sessionIdRef.current;
+  }
 
   function handleAsk(q: string, useMode: 'ask' | 'delegate' = mode) {
     const text = q.trim();
@@ -39,12 +64,30 @@ export function Chat() {
     setQuestion('');
     startTransition(async () => {
       try {
+        if (voiceEnabled) {
+          const sessionId = await ensureSession();
+          await logVoiceTranscript(sessionId, 'user', text);
+        }
+
+        let responseText: string;
         if (useMode === 'delegate') {
           const result = await orchestrateRequest(text);
+          responseText = result.combined_result;
           setMessages((prev) => [...prev, { role: 'assistant', content: result.combined_result, agentRuns: result.agent_runs }]);
         } else {
           const result = await askAdvisor(text);
+          responseText = result.answer;
           setMessages((prev) => [...prev, { role: 'assistant', content: result.answer, sources: result.sources }]);
+        }
+
+        if (voiceEnabled) {
+          const sessionId = await ensureSession();
+          await logVoiceTranscript(sessionId, 'assistant', responseText);
+          try {
+            await playTts(responseText);
+          } catch {
+            // Speech playback failing shouldn't block the text response already shown.
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -76,19 +119,25 @@ export function Chat() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-3 flex gap-2">
-        <button
-          onClick={() => setMode('ask')}
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${mode === 'ask' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50'}`}
-        >
-          Ask
-        </button>
-        <button
-          onClick={() => setMode('delegate')}
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${mode === 'delegate' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50'}`}
-        >
-          Delegate to agent team
-        </button>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setMode('ask')}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${mode === 'ask' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50'}`}
+          >
+            Ask
+          </button>
+          <button
+            onClick={() => setMode('delegate')}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${mode === 'delegate' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50'}`}
+          >
+            Delegate to agent team
+          </button>
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+          <input type="checkbox" checked={voiceEnabled} onChange={(e) => setVoiceEnabled(e.target.checked)} />
+          Voice mode (speaks replies aloud)
+        </label>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-4">
@@ -166,6 +215,7 @@ export function Chat() {
         }}
         className="mt-3 flex gap-2"
       >
+        <MicButton onTranscript={(text) => handleAsk(text)} disabled={isPending} />
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}

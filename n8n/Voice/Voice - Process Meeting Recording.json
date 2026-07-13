@@ -1,0 +1,277 @@
+{
+  "name": "Voice - Process Meeting Recording",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-process-meeting",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000001",
+      "name": "Called From Dashboard (Process Meeting)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1800, 0],
+      "notes": "Requires header x-automation-secret. Body: { meeting_id, transcript_text? }. Next.js normally saves transcript_text to the meeting_transcripts row directly (via the same ElevenLabs STT proxy used for conversation) before calling this - transcript_text in the body is only a fallback if that write didn't happen for some reason."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { meeting_id: payload.meeting_id, transcript_text: payload.transcript_text || '', auth_ok: authOk } }];"
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000002",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1600, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000003",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-1400, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000004",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1200, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/meeting_transcripts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.meeting_id }}" },
+            { "name": "select", "value": "user_id,title,transcript_text" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000005",
+      "name": "Fetch Meeting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json;\nconst meeting = Array.isArray(rows) ? rows[0] : rows;\nif (!meeting) {\n  throw new Error('Meeting not found: ' + $('Normalize & Check Auth').first().json.meeting_id);\n}\nconst input = $('Normalize & Check Auth').first().json;\nconst transcriptText = meeting.transcript_text || input.transcript_text;\nif (!transcriptText) {\n  throw new Error('No transcript text found for meeting ' + input.meeting_id + ' - was it saved before calling this workflow?');\n}\nreturn [{\n  json: {\n    prompt_key: 'meeting_summary',\n    user_id: meeting.user_id,\n    feature: 'meeting_summary',\n    related_record_type: 'meeting_transcript',\n    related_record_id: input.meeting_id,\n    meeting_id: input.meeting_id,\n    variables: { title: meeting.title, transcript_text: transcriptText }\n  }\n}];"
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000006",
+      "name": "Build AI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, -150]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "AI - Process Request"
+        },
+        "options": {}
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000007",
+      "name": "Call AI - Process Request",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-800, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResult = $input.first().json;\nconst built = $('Build AI Request').first().json;\nconst output = aiResult.output || {};\nconst actionItems = output.action_items || [];\n\nreturn [{\n  json: {\n    meeting_id: built.meeting_id,\n    user_id: built.user_id,\n    summary_text: output.summary,\n    decisions: output.decisions,\n    next_meeting_date: output.next_meeting_date || null,\n    action_item_descriptions: actionItems.map(a => a.description)\n  }\n}];"
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000008",
+      "name": "Parse Summary Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{ json: { items: input.action_item_descriptions.map(description => ({ user_id: input.user_id, title: description, status: 'pending', priority: 'medium', category: 'meeting_follow_up' })) } }];"
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000009",
+      "name": "Prep Task Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, -150],
+      "notes": "Action items become real tasks (Phase 4's table), not a new 'action_items' concept - so they show up wherever tasks already show up (Tasks page, daily briefing)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.items) }}",
+        "options": {}
+      },
+      "id": "l1l1a1b1-0011-4011-8011-00000000000a",
+      "name": "Insert Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "No-ops safely on an empty array (no action items identified)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Summary Output').first().json;\nconst insertedTasks = $input.first().json || [];\nconst actionItems = parsed.action_item_descriptions.map((description, i) => ({ description, task_id: insertedTasks[i]?.id || null }));\n\nreturn [{\n  json: {\n    meeting_id: parsed.meeting_id,\n    summary_text: parsed.summary_text,\n    decisions: parsed.decisions,\n    next_meeting_date: parsed.next_meeting_date,\n    action_items: actionItems\n  }\n}];"
+      },
+      "id": "l1l1a1b1-0011-4011-8011-00000000000b",
+      "name": "Prepare Meeting Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, -150]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/meeting_transcripts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [{ "name": "id", "value": "=eq.{{ $json.meeting_id }}" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ summary_text: $json.summary_text, decisions: $json.decisions, next_meeting_date: $json.next_meeting_date, action_items: $json.action_items, status: 'ready' }) }}",
+        "options": {}
+      },
+      "id": "l1l1a1b1-0011-4011-8011-00000000000c",
+      "name": "Update Meeting Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [200, -150],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "l1l1a1b1-0011-4011-8011-00000000000d",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, -150]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "l1l1a1b1-0011-4011-8011-00000000000e",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [600, -150]
+    }
+  ],
+  "connections": {
+    "Called From Dashboard (Process Meeting)": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Normalize & Check Auth": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Fetch Meeting", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Meeting": {
+      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+    },
+    "Build AI Request": {
+      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+    },
+    "Call AI - Process Request": {
+      "main": [[{ "node": "Parse Summary Output", "type": "main", "index": 0 }]]
+    },
+    "Parse Summary Output": {
+      "main": [[{ "node": "Prep Task Rows", "type": "main", "index": 0 }]]
+    },
+    "Prep Task Rows": {
+      "main": [[{ "node": "Insert Tasks", "type": "main", "index": 0 }]]
+    },
+    "Insert Tasks": {
+      "main": [[{ "node": "Prepare Meeting Update", "type": "main", "index": 0 }]]
+    },
+    "Prepare Meeting Update": {
+      "main": [[{ "node": "Update Meeting Record", "type": "main", "index": 0 }]]
+    },
+    "Update Meeting Record": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Build Response": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}

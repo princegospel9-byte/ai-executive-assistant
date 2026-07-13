@@ -9,18 +9,24 @@ export type SearchResults = {
   calendarEvents: SearchResult[];
   emails: SearchResult[];
   documents: SearchResult[];
+  media: SearchResult[];
 };
 
 export async function search(query: string): Promise<SearchResults> {
   const supabase = await createClient();
   const term = `%${query}%`;
 
-  const [schools, tasks, events, emails, documents] = await Promise.all([
+  const [schools, tasks, events, emails, documents, media] = await Promise.all([
     supabase.from('schools').select('id, school_name, location').ilike('school_name', term).limit(10),
     supabase.from('tasks').select('id, title, status').ilike('title', term).limit(10),
     supabase.from('calendar_events').select('id, title, start_time').ilike('title', term).limit(10),
     supabase.from('emails').select('id, subject, from_name, from_address').ilike('subject', term).limit(10),
     supabase.from('knowledge_documents').select('id, filename, file_type').ilike('filename', term).limit(10),
+    supabase
+      .from('uploaded_media')
+      .select('id, filename, description')
+      .or(`filename.ilike.${term},description.ilike.${term}`)
+      .limit(10),
   ]);
 
   const results: SearchResults = {
@@ -39,6 +45,7 @@ export async function search(query: string): Promise<SearchResults> {
       href: `/email/${e.id}`,
     })),
     documents: (documents.data ?? []).map((d) => ({ id: d.id, label: d.filename, sublabel: d.file_type.toUpperCase(), href: `/knowledge-base` })),
+    media: (media.data ?? []).map((m) => ({ id: m.id, label: m.filename, sublabel: (m.description || '').slice(0, 60), href: `/knowledge-base` })),
   };
 
   const totalCount = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);

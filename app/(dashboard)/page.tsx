@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
+import { ListenButton } from '@/components/voice/listen-button';
 
 const INSIGHT_STYLES: Record<string, string> = {
   risk: 'bg-red-100 text-red-800 hover:bg-red-100',
@@ -91,7 +92,10 @@ export default async function DashboardHomePage() {
       <div className="rounded-lg border border-neutral-200 bg-white p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-neutral-900">Today&apos;s briefing</h2>
-          {briefing && <Badge variant="secondary">{new Date(briefing.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Badge>}
+          <div className="flex items-center gap-2">
+            {briefing && <ListenButton text={briefing.content_text} />}
+            {briefing && <Badge variant="secondary">{new Date(briefing.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Badge>}
+          </div>
         </div>
 
         {briefing ? (
