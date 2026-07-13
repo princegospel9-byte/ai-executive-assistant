@@ -6,6 +6,8 @@ These workflows were written as JSON files without a live n8n instance to test-i
 
 Any n8n instance works - self-hosted (a small VPS, ~$5-10/mo) or n8n Cloud. Nothing in these workflow files is hosting-specific; that decision can wait.
 
+**Free self-hosting option (Phase 9):** `deploy/n8n/docker-compose.yml` runs n8n locally or on any machine with Docker installed, for $0/month. Copy `deploy/n8n/.env.example` to `deploy/n8n/.env`, fill in a username/password for the n8n web UI, then from `deploy/n8n/`: `docker compose up -d`. n8n is then reachable at `http://localhost:5678`. This only gets you a *running* n8n - Steps 2-6 below (Variables, migrations, import, credentials, activation) are still needed regardless of where n8n runs.
+
 ## 2. Set the required Variables
 
 In n8n: **Settings → Variables** (if your instance doesn't show this, you're on an older/restricted setup - see the fallback note at the bottom). Create three:

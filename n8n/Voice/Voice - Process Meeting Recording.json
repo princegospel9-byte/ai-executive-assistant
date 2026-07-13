@@ -165,6 +165,45 @@
     },
     {
       "parameters": {
+        "jsCode": "const parsed = $('Parse Summary Output').first().json;\nconst insertedTasks = $input.first().json || [];\nconst rows = insertedTasks.map(t => ({ user_id: parsed.user_id, from_type: 'meeting_transcript', from_id: parsed.meeting_id, to_type: 'task', to_id: t.id, relationship_type: 'action_item_from' }));\nreturn [{ json: { rows } }];"
+      },
+      "id": "l1l1a1b1-0011-4011-8011-00000000000f",
+      "name": "Prep Relationship Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 50],
+      "notes": "Phase 9 addition: links each action-item task back to the meeting it came from in entity_relationships (the knowledge graph) - one concrete example of the pattern, not wired into every creation point across the system yet."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/entity_relationships?on_conflict=user_id,from_type,from_id,to_type,to_id,relationship_type",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.rows) }}",
+        "options": {}
+      },
+      "id": "l1l1a1b1-0011-4011-8011-000000000010",
+      "name": "Insert Relationships",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 50],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "No-ops safely on an empty array."
+    },
+    {
+      "parameters": {
         "jsCode": "const parsed = $('Parse Summary Output').first().json;\nconst insertedTasks = $input.first().json || [];\nconst actionItems = parsed.action_item_descriptions.map((description, i) => ({ description, task_id: insertedTasks[i]?.id || null }));\n\nreturn [{\n  json: {\n    meeting_id: parsed.meeting_id,\n    summary_text: parsed.summary_text,\n    decisions: parsed.decisions,\n    next_meeting_date: parsed.next_meeting_date,\n    action_items: actionItems\n  }\n}];"
       },
       "id": "l1l1a1b1-0011-4011-8011-00000000000b",
@@ -256,7 +295,15 @@
       "main": [[{ "node": "Insert Tasks", "type": "main", "index": 0 }]]
     },
     "Insert Tasks": {
-      "main": [[{ "node": "Prepare Meeting Update", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          { "node": "Prepare Meeting Update", "type": "main", "index": 0 },
+          { "node": "Prep Relationship Rows", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prep Relationship Rows": {
+      "main": [[{ "node": "Insert Relationships", "type": "main", "index": 0 }]]
     },
     "Prepare Meeting Update": {
       "main": [[{ "node": "Update Meeting Record", "type": "main", "index": 0 }]]

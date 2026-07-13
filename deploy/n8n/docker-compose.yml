@@ -1,0 +1,24 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - '5678:5678'
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=Africa/Accra
+      - TZ=Africa/Accra
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      # n8n Variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY,
+      # VOYAGE_API_KEY, N8N_WEBHOOK_SECRET) are set inside the n8n UI under
+      # Settings > Variables after first login - not here, so they aren't
+      # sitting in plaintext in this file or its .env.
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:

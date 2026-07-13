@@ -1,0 +1,176 @@
+{
+  "name": "AI OS - Update Knowledge Graph",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "n3n3c3d3-0013-4013-8013-000000000001",
+      "name": "When Called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-1200, -150],
+      "notes": "Expected input: { user_id, from_type, from_id, to_type, to_id, relationship_type }. Generic building block, same reusable-core-workflow pattern as AI - Process Request / Core - Request Approval - called from any workflow that creates a meaningful relationship between records. Dual-trigger with the webhook below."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-knowledge-graph",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000002",
+      "name": "Called From Dashboard (Update Graph)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1200, 150],
+      "notes": "Requires header x-automation-secret. Same body shape as the sub-workflow trigger."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || item;\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = item.headers ? providedSecret === $vars.N8N_WEBHOOK_SECRET : true;\nreturn [{\n  json: {\n    user_id: payload.user_id,\n    from_type: payload.from_type,\n    from_id: payload.from_id,\n    to_type: payload.to_type,\n    to_id: payload.to_id,\n    relationship_type: payload.relationship_type,\n    auth_ok: authOk,\n    from_webhook: !!item.headers\n  }\n}];"
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000003",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1000, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000004",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-800, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": { "responseCode": 401 }
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000005",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-600, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/entity_relationships?on_conflict=user_id,from_type,from_id,to_type,to_id,relationship_type",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, from_type: $json.from_type, from_id: $json.from_id, to_type: $json.to_type, to_id: $json.to_id, relationship_type: $json.relationship_type }) }}",
+        "options": {}
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000006",
+      "name": "Upsert Relationship",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, -100],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true } }];"
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000007",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, -100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Normalize & Check Auth').first().json.from_webhook }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000008",
+      "name": "Called Via Webhook?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-200, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "n3n3c3d3-0013-4013-8013-000000000009",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [0, -100]
+    }
+  ],
+  "connections": {
+    "When Called": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Called From Dashboard (Update Graph)": {
+      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+    },
+    "Normalize & Check Auth": {
+      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+    },
+    "Authorized?": {
+      "main": [
+        [{ "node": "Upsert Relationship", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upsert Relationship": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Build Response": {
+      "main": [[{ "node": "Called Via Webhook?", "type": "main", "index": 0 }]]
+    },
+    "Called Via Webhook?": {
+      "main": [
+        [{ "node": "Respond 200", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "pinData": {}
+}
