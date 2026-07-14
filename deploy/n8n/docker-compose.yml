@@ -13,10 +13,23 @@ services:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      # n8n Variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY,
-      # VOYAGE_API_KEY, N8N_WEBHOOK_SECRET) are set inside the n8n UI under
-      # Settings > Variables after first login - not here, so they aren't
-      # sitting in plaintext in this file or its .env.
+      # n8n's Variables feature is paid-license-gated on Community edition -
+      # confirmed the hard way (every workflow initially tried to use it and
+      # silently failed). Every workflow reads $env.X instead, so these must
+      # be real process environment variables, and N8N_BLOCK_ENV_ACCESS_IN_NODE
+      # must be false or expressions/Code nodes can't read them. Set actual
+      # values via your host's env var / secrets UI (not committed here):
+      # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY,
+      # VOYAGE_API_KEY, N8N_WEBHOOK_SECRET, SCHOOLHUB_WEBHOOK_SECRET,
+      # SCHOOLHUB_AI_REPLY_SECRET.
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET}
+      - SCHOOLHUB_WEBHOOK_SECRET=${SCHOOLHUB_WEBHOOK_SECRET}
+      - SCHOOLHUB_AI_REPLY_SECRET=${SCHOOLHUB_AI_REPLY_SECRET}
     volumes:
       - n8n_data:/home/node/.n8n
 
