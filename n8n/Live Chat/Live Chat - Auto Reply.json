@@ -1,0 +1,635 @@
+{
+  "name": "Live Chat - Auto Reply",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "live-chat-autoreply",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lc01",
+      "name": "Called From SchoolHub Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2600,
+        0
+      ],
+      "notes": "Requires header x-schoolhub-secret. Body: { message_id, school_id, session_id, sender_name, sender_email, message }. Called by a Postgres trigger on chat_messages in the SchoolPro GH project (separate Supabase project) via pg_net - see supabase/migrations for the trigger definition in ghana-school-hub-main.",
+      "webhookId": "c637a240-91c1-4545-b436-84052e965e2f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-schoolhub-secret'] || item.headers?.['X-Schoolhub-Secret'];\nconst authOk = providedSecret === $env.SCHOOLHUB_WEBHOOK_SECRET;\nreturn [{ json: { message_id: payload.message_id, school_id: payload.school_id, session_id: payload.session_id, sender_name: payload.sender_name || '', message: payload.message || '', auth_ok: authOk } }];"
+      },
+      "id": "lc02",
+      "name": "Normalize & Check Auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lc03",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "lc04",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -2000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "lc05",
+      "name": "Get Primary User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2000,
+        -150
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.voyageai.com/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.VOYAGE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: [$('Normalize & Check Auth').first().json.message], model: 'voyage-3.5', input_type: 'query' }) }}",
+        "options": {}
+      },
+      "id": "lc06",
+      "name": "Embed Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1800,
+        -150
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/match_document_chunks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query_embedding: $json.data[0].embedding, match_user_id: $('Get Primary User').first().json.id, match_count: 6 }) }}",
+        "options": {}
+      },
+      "id": "lc07",
+      "name": "Vector Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1600,
+        -150
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const chunks = $('Vector Search').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0);\nconst topSimilarity = chunks.length ? Math.max(...chunks.map(c => c.similarity || 0)) : 0;\nconst retrievedContext = chunks.length\n  ? chunks.map(c => `- ${c.content}`).join('\\n\\n')\n  : 'No relevant product documentation found.';\nreturn [{\n  json: {\n    question: $('Normalize & Check Auth').first().json.message,\n    user_id: $('Get Primary User').first().json.id,\n    retrieved_context: retrievedContext,\n    top_similarity: topSimilarity,\n    chunk_count: chunks.length\n  }\n}];"
+      },
+      "id": "lc08",
+      "name": "Build Retrieved Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1400,
+        -150
+      ],
+      "notes": "Deliberately documentation-only (no business_memory/pipeline/tasks blend like KB - Answer Question) - this reply goes to a real customer, not Prince, so it must never leak internal business data."
+    },
+    {
+      "parameters": {
+        "jsCode": "const context = $('Build Retrieved Context').first().json;\nreturn [{\n  json: {\n    prompt_key: 'live_chat_reply',\n    user_id: context.user_id,\n    feature: 'live_chat_autoreply',\n    variables: {\n      question: context.question,\n      retrieved_context: context.retrieved_context\n    }\n  }\n}];"
+      },
+      "id": "lc09",
+      "name": "Build AI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        -150
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "NScqkbAehRkYoqbX",
+          "mode": "list",
+          "cachedResultName": "AI - Process Request"
+        },
+        "options": {}
+      },
+      "id": "lc10",
+      "name": "Call AI - Process Request",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -1000,
+        -150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResult = $('Call AI - Process Request').first().json;\nconst context = $('Build Retrieved Context').first().json;\nconst parsed = aiResult.output || {};\n// Belt-and-suspenders: require BOTH Claude's self-reported confidence AND a\n// real vector-similarity floor - never rely on the model's self-report alone\n// for something that can auto-reply to a real customer with no review.\nconst confident = parsed.confident === true && context.top_similarity >= 0.5;\nreturn [{\n  json: {\n    confident,\n    answer: parsed.answer || '',\n    message_id: $('Normalize & Check Auth').first().json.message_id,\n    school_id: $('Normalize & Check Auth').first().json.school_id,\n    session_id: $('Normalize & Check Auth').first().json.session_id,\n    question: context.question\n  }\n}];"
+      },
+      "id": "lc11",
+      "name": "Check Confidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        -150
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.confident }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "lc12",
+      "name": "Confident?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -600,
+        -150
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SCHOOLHUB_SUPABASE_URL }}/rest/v1/chat_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, sender_name: 'AI Assistant', message: $json.answer, session_id: $json.session_id, is_admin_reply: true, is_read: true }) }}",
+        "options": {}
+      },
+      "id": "lc13",
+      "name": "Send Confident Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        -300
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "notes": "Writes directly into the SchoolPro GH project (separate Supabase project, kjfirgqhxhqernibsgvm) using its own service-role credentials. Only 2 retries, not 3 - a retried insert after a genuine partial failure risks a duplicate reply, worse than surfacing the error."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, action: \"auto_replied\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "lc14",
+      "name": "Respond 200 (Replied)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -200,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SCHOOLHUB_SUPABASE_URL }}/rest/v1/chat_messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, sender_name: 'AI Assistant', message: 'Thanks for reaching out - let me check on that and get back to you shortly!', session_id: $json.session_id, is_admin_reply: true, is_read: true }) }}",
+        "options": {}
+      },
+      "id": "lc15",
+      "name": "Send Fallback Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -400,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const c = $('Check Confidence').first().json;\nreturn [{\n  json: {\n    user_id: $('Get Primary User').first().json.id,\n    title: 'Live chat needs your reply',\n    message: `A school admin asked: \"${c.question}\" - the AI wasn't confident enough to auto-reply. Open Live Chat to answer.`,\n    severity: 'warning',\n    channel: 'in_app',\n    related_record_type: 'live_chat_message',\n    related_record_id: c.message_id\n  }\n}];"
+      },
+      "id": "lc16",
+      "name": "Build Notification Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "YEHmYg50iosaKxi5",
+          "mode": "list",
+          "cachedResultName": "Notifications - Send Notification"
+        },
+        "options": {}
+      },
+      "id": "lc17",
+      "name": "Notify",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, action: \"escalated\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "lc18",
+      "name": "Respond 200 (Escalated)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Called From SchoolHub Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Check Auth": {
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorized?": {
+      "main": [
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Primary User": {
+      "main": [
+        [
+          {
+            "node": "Embed Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Message": {
+      "main": [
+        [
+          {
+            "node": "Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Search": {
+      "main": [
+        [
+          {
+            "node": "Build Retrieved Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Retrieved Context": {
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Request": {
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call AI - Process Request": {
+      "main": [
+        [
+          {
+            "node": "Check Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Confidence": {
+      "main": [
+        [
+          {
+            "node": "Confident?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confident?": {
+      "main": [
+        [
+          {
+            "node": "Send Confident Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Fallback Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confident Reply": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 (Replied)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Fallback Reply": {
+      "main": [
+        [
+          {
+            "node": "Build Notification Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Notification Payload": {
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 (Escalated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "MwGiYLuimBUn0yYD"
+  },
+  "pinData": {}
+}
