@@ -60,7 +60,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $input.first().json;\nconst notification = Array.isArray(row) ? row[0] : row;\nreturn [{ json: { success: true, notification_id: notification.id } }];"
+        "jsCode": "const row = $('Insert Notification').first().json;\nconst notification = Array.isArray(row) ? row[0] : row;\nreturn [{ json: { success: true, notification_id: notification.id } }];"
       },
       "id": "84b3c415-8540-4d31-bc2a-2b7f2a9addb6",
       "name": "Return Result",
@@ -70,6 +70,110 @@
         0,
         0
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Insert Notification').first().json.severity }}",
+              "rightValue": "warning",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $('Insert Notification').first().json.severity }}",
+              "rightValue": "critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "notif01",
+      "name": "Needs External Delivery?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -200,
+        150
+      ],
+      "notes": "Only warning/critical severity goes external (email/Telegram) - info-level notifications (e.g. \"Event created\") stay in-app only, matching what actually needs attention."
+    },
+    {
+      "parameters": {
+        "jsCode": "const n = $('Insert Notification').first().json;\nconst lines = [\n  'To: kbrisksenterprise@gmail.com',\n  `Subject: [KBrisks AI] ${n.title}`,\n  'Content-Type: text/plain; charset=utf-8',\n  '',\n  n.message || n.title\n];\nconst raw = Buffer.from(lines.join('\\r\\n')).toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\nreturn [{ json: { raw } }];"
+      },
+      "id": "notif02",
+      "name": "Build Notification Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $json.raw }) }}",
+        "options": {}
+      },
+      "id": "notif03",
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        100
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, text: `*${$('Insert Notification').first().json.title}*\\n${$('Insert Notification').first().json.message || ''}`, parse_mode: 'Markdown' }) }}",
+        "options": {}
+      },
+      "id": "notif04",
+      "name": "Send Telegram Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "notes": "Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars to be set - see @BotFather setup."
     }
   ],
   "connections": {
@@ -88,6 +192,62 @@
       "main": [
         [
           {
+            "node": "Needs External Delivery?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs External Delivery?": {
+      "main": [
+        [
+          {
+            "node": "Build Notification Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Telegram Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Notification Email": {
+      "main": [
+        [
+          {
+            "node": "Send Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Notification": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Notification": {
+      "main": [
+        [
+          {
             "node": "Return Result",
             "type": "main",
             "index": 0
@@ -96,10 +256,10 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "errorWorkflow": ""
+    "errorWorkflow": "MwGiYLuimBUn0yYD"
   },
   "pinData": {}
 }
