@@ -295,31 +295,23 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCHOOLHUB_SUPABASE_URL }}/rest/v1/chat_messages",
+        "url": "https://kqpyivxqoapytxjfbrnw.supabase.co/functions/v1/ai-chat-reply",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "apikey",
-              "value": "={{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
+              "name": "x-ai-reply-secret",
+              "value": "={{ $env.SCHOOLHUB_AI_REPLY_SECRET }}"
             },
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=minimal"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, sender_name: 'AI Assistant', message: $json.answer, session_id: $json.session_id, is_admin_reply: true, is_read: true }) }}",
+        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, session_id: $json.session_id, message: $json.answer }) }}",
         "options": {}
       },
       "id": "lc13",
@@ -355,31 +347,23 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCHOOLHUB_SUPABASE_URL }}/rest/v1/chat_messages",
+        "url": "https://kqpyivxqoapytxjfbrnw.supabase.co/functions/v1/ai-chat-reply",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "apikey",
-              "value": "={{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.SCHOOLHUB_SUPABASE_SERVICE_ROLE_KEY }}"
+              "name": "x-ai-reply-secret",
+              "value": "={{ $env.SCHOOLHUB_AI_REPLY_SECRET }}"
             },
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=minimal"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, sender_name: 'AI Assistant', message: 'Thanks for reaching out - let me check on that and get back to you shortly!', session_id: $json.session_id, is_admin_reply: true, is_read: true }) }}",
+        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, session_id: $json.session_id, message: 'Thanks for reaching out - let me check on that and get back to you shortly!' }) }}",
         "options": {}
       },
       "id": "lc15",
