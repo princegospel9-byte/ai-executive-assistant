@@ -371,7 +371,7 @@
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.length }}",
+              "leftValue": "={{ Object.keys($json).length }}",
               "rightValue": 0,
               "operator": {
                 "type": "number",

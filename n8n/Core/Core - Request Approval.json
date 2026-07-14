@@ -77,7 +77,7 @@
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.length }}",
+              "leftValue": "={{ Object.keys($json).length }}",
               "rightValue": 0,
               "operator": {
                 "type": "number",
@@ -138,7 +138,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ user_id: $json.user_id, action_type: $json.action_type, payload: $json.payload, related_record_type: $json.related_record_type || null, related_record_id: $json.related_record_id || null }) }}",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('When Called').first().json.user_id, action_type: $('When Called').first().json.action_type, payload: $('When Called').first().json.payload, related_record_type: $('When Called').first().json.related_record_type || null, related_record_id: $('When Called').first().json.related_record_id || null }) }}",
         "options": {}
       },
       "id": "994edc5b-be17-4872-8438-4f322d8894e3",
