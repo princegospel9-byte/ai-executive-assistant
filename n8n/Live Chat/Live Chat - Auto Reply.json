@@ -270,7 +270,7 @@
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.confident }}",
+              "leftValue": "={{ $('Check Confidence').first().json.confident }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -311,7 +311,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, session_id: $json.session_id, message: $json.answer }) }}",
+        "jsonBody": "={{ JSON.stringify({ school_id: $('Check Confidence').first().json.school_id, session_id: $('Check Confidence').first().json.session_id, message: $('Check Confidence').first().json.answer }) }}",
         "options": {}
       },
       "id": "lc13",
@@ -363,7 +363,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ school_id: $json.school_id, session_id: $json.session_id, message: 'Thanks for reaching out - let me check on that and get back to you shortly!' }) }}",
+        "jsonBody": "={{ JSON.stringify({ school_id: $('Check Confidence').first().json.school_id, session_id: $('Check Confidence').first().json.session_id, message: 'Thanks for reaching out - let me check on that and get back to you shortly!' }) }}",
         "options": {}
       },
       "id": "lc15",
@@ -427,6 +427,48 @@
         200,
         100
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/live_chat_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('Get Primary User').first().json.id, school_id: $json.school_id, session_id: $json.session_id, sender_name: $('Normalize & Check Auth').first().json.sender_name, question: $json.question, answer: $json.answer, outcome: $json.confident ? 'auto_replied' : 'escalated', top_similarity: $('Build Retrieved Context').first().json.top_similarity }) }}",
+        "options": {}
+      },
+      "id": "lc19",
+      "name": "Log Interaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -700,
+        -150
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
     }
   ],
   "connections": {
@@ -540,7 +582,7 @@
       "main": [
         [
           {
-            "node": "Confident?",
+            "node": "Log Interaction",
             "type": "main",
             "index": 0
           }
@@ -603,6 +645,17 @@
         [
           {
             "node": "Respond 200 (Escalated)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Interaction": {
+      "main": [
+        [
+          {
+            "node": "Confident?",
             "type": "main",
             "index": 0
           }

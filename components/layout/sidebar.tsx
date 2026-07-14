@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: '/goals', label: 'Goals' },
   { href: '/finance', label: 'Finance' },
   { href: '/support', label: 'Support' },
+  { href: '/live-chat', label: 'Live Chat' },
   { href: '/search', label: 'Search' },
   { href: '/job-tracker', label: 'Job Tracker' },
   { href: '/assistant', label: 'AI Advisor' },
