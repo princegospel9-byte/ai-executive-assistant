@@ -7,7 +7,10 @@
       "name": "Run Test",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [-400, 0]
+      "position": [
+        -400,
+        0
+      ]
     },
     {
       "parameters": {
@@ -16,9 +19,18 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -30,8 +42,12 @@
       "name": "Call Claude",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, 0],
-      "notes": "Uses Haiku deliberately - this test only needs to prove connectivity, not capability, so it should be the cheapest possible check."
+      "position": [
+        -200,
+        0
+      ],
+      "notes": "Uses Haiku deliberately - this test only needs to prove connectivity, not capability, so it should be the cheapest possible check.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -41,15 +57,34 @@
       "name": "Report Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     }
   ],
   "connections": {
     "Run Test": {
-      "main": [[{ "node": "Call Claude", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call Claude": {
-      "main": [[{ "node": "Report Result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Report Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

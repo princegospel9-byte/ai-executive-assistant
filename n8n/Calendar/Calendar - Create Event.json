@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (New Event)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1800, 0],
-      "notes": "Requires header x-automation-secret. Body: { title, start_time, end_time, location?, notes?, attendees?: string[] }. Creates directly (no approval gate) but checks for conflicts first and reports them in the response - see Phase 4 plan for why this differs from the email module's approval gate."
+      "position": [
+        -1800,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { title, start_time, end_time, location?, notes?, attendees?: string[] }. Creates directly (no approval gate) but checks for conflicts first and reports them in the response - see Phase 4 plan for why this differs from the email module's approval gate.",
+      "webhookId": "38002ed2-6d81-46b0-956b-401e8e1cf281"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{\n  json: {\n    title: payload.title,\n    start_time: payload.start_time,\n    end_time: payload.end_time,\n    location: payload.location || null,\n    notes: payload.notes || null,\n    attendees: payload.attendees || [],\n    auth_ok: authOk\n  }\n}];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{\n  json: {\n    title: payload.title,\n    start_time: payload.start_time,\n    end_time: payload.end_time,\n    location: payload.location || null,\n    notes: payload.notes || null,\n    attendees: payload.attendees || [],\n    auth_ok: authOk\n  }\n}];"
       },
       "id": "aac2eb1e-6382-4451-a3a1-96797cd0d561",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1400, 0]
+      "position": [
+        -1400,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "3801de55-67ab-4224-b2cc-58934080e91e",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1200, 200]
+      "position": [
+        -1200,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -82,10 +117,14 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -96,9 +135,18 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "timeMin", "value": "={{ $('Normalize & Check Auth').first().json.start_time }}" },
-            { "name": "timeMax", "value": "={{ $('Normalize & Check Auth').first().json.end_time }}" },
-            { "name": "singleEvents", "value": "true" }
+            {
+              "name": "timeMin",
+              "value": "={{ $('Normalize & Check Auth').first().json.start_time }}"
+            },
+            {
+              "name": "timeMax",
+              "value": "={{ $('Normalize & Check Auth').first().json.end_time }}"
+            },
+            {
+              "name": "singleEvents",
+              "value": "true"
+            }
           ]
         },
         "options": {}
@@ -107,11 +155,20 @@
       "name": "Check Conflicts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, -150],
-      "credentials": { "googleCalendarOAuth2Api": { "id": "", "name": "Google Calendar account" } },
+      "position": [
+        -1000,
+        -150
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "",
+          "name": "Google Calendar account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -121,7 +178,10 @@
       "name": "Detect Conflicts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -138,56 +198,84 @@
       "name": "Create Google Calendar Event",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-600, -150],
-      "credentials": { "googleCalendarOAuth2Api": { "id": "", "name": "Google Calendar account" } },
+      "position": [
+        -600,
+        -150
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "",
+          "name": "Google Calendar account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 5000,
-      "notes": "2 retries, not 3 - same reasoning as the email send node: a retried create after a genuine partial failure risks a duplicate event with real invitees, which is worse than surfacing the error."
+      "notes": "2 retries, not 3 - same reasoning as the email send node: a retried create after a genuine partial failure risks a duplicate event with real invitees, which is worse than surfacing the error.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/calendar_events?on_conflict=user_id,external_event_id",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/calendar_events?on_conflict=user_id,external_event_id",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ user_id: $('Get Primary User').first().json[0].id, external_event_id: $json.id, title: $json.summary, description: $json.description || null, start_time: $json.start.dateTime || $json.start.date, end_time: $json.end.dateTime || $json.end.date, location: $json.location || null, meeting_link: $json.hangoutLink || null, attendees: ($json.attendees || []).map(a => a.email), sync_status: 'synced' }) }}",
+        "jsonBody": "={{ JSON.stringify({ user_id: $('Get Primary User').first().json.id, external_event_id: $json.id, title: $json.summary, description: $json.description || null, start_time: $json.start.dateTime || $json.start.date, end_time: $json.end.dateTime || $json.end.date, location: $json.location || null, meeting_link: $json.hangoutLink || null, attendees: ($json.attendees || []).map(a => a.email), sync_status: 'synced' }) }}",
         "options": {}
       },
       "id": "91e7a4a8-a08f-4582-83e8-4224a6f743bc",
       "name": "Upsert Calendar Event (Local)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, -150],
+      "position": [
+        -400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json;\nconst event = Array.isArray(rows) ? rows[0] : rows;\nconst conflicts = $('Detect Conflicts').first().json.conflicts;\nconst conflictNote = conflicts.length > 0 ? ` Note: this overlaps with ${conflicts.length} existing event(s).` : '';\nreturn [{\n  json: {\n    user_id: event.user_id,\n    title: 'Event created',\n    message: `\"${event.title}\" was added to your calendar.${conflictNote}`,\n    severity: conflicts.length > 0 ? 'warning' : 'info',\n    channel: 'in_app',\n    related_record_type: 'calendar_event',\n    related_record_id: event.id\n  }\n}];"
+        "jsCode": "const rows = $input.first().json;\nconst event = Array.isArray(rows) ? rows[0] : rows;\nconst conflicts = $('Detect Conflicts').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0).conflicts;\nconst conflictNote = conflicts.length > 0 ? ` Note: this overlaps with ${conflicts.length} existing event(s).` : '';\nreturn [{\n  json: {\n    user_id: event.user_id,\n    title: 'Event created',\n    message: `\"${event.title}\" was added to your calendar.${conflictNote}`,\n    severity: conflicts.length > 0 ? 'warning' : 'info',\n    channel: 'in_app',\n    related_record_type: 'calendar_event',\n    related_record_id: event.id\n  }\n}];"
       },
       "id": "0d7f67bd-d566-4caf-84b2-92c3dc12537f",
       "name": "Build Notification Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, -150]
+      "position": [
+        -200,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "YEHmYg50iosaKxi5",
           "mode": "list",
           "cachedResultName": "Notifications - Send Notification"
         },
@@ -197,7 +285,10 @@
       "name": "Notify",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -207,57 +298,157 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "d909dd50-5c70-4b74-9581-5b210aed9158",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [400, -150]
+      "position": [
+        400,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (New Event)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Check Conflicts", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Check Conflicts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Check Conflicts": {
-      "main": [[{ "node": "Detect Conflicts", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Detect Conflicts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Detect Conflicts": {
-      "main": [[{ "node": "Create Google Calendar Event", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Create Google Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Create Google Calendar Event": {
-      "main": [[{ "node": "Upsert Calendar Event (Local)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Calendar Event (Local)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Calendar Event (Local)": {
-      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Notification Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Notification Payload": {
-      "main": [[{ "node": "Notify", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Notify": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

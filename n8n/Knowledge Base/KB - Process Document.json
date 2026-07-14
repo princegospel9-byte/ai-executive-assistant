@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Process Document)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2000, 0],
-      "notes": "Requires header x-automation-secret. Body: { document_id, text } - text extraction already happened in Next.js before this call (see documentation/knowledge-base-module.md). Responds immediately, chunks/embeds/stores in the background."
+      "position": [
+        -2000,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { document_id, text } - text extraction already happened in Next.js before this call (see documentation/knowledge-base-module.md). Responds immediately, chunks/embeds/stores in the background.",
+      "webhookId": "0aa34d34-6886-469c-8dee-e1de7b4de113"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { document_id: payload.document_id, text: payload.text || '', auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { document_id: payload.document_id, text: payload.text || '', auth_ok: authOk } }];"
       },
       "id": "a1b1c1d1-0001-4001-8001-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "a1b1c1d1-0001-4001-8001-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1400, 200]
+      "position": [
+        -1400,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/knowledge_documents",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_documents",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.document_id }}" },
-            { "name": "select", "value": "id,user_id" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.document_id }}"
+            },
+            {
+              "name": "select",
+              "value": "id,user_id"
+            }
           ]
         },
         "options": {}
@@ -82,10 +117,14 @@
       "name": "Fetch Document",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -95,7 +134,10 @@
       "name": "Chunk Text",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "notes": "Capped implicitly by Voyage's per-request batch limit (~128 inputs) - very large documents (100+ chunks) are a known limitation, not handled with pagination in this build. See documentation/knowledge-base-module.md."
     },
     {
@@ -106,19 +148,27 @@
       "name": "Build Ack Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, -300]
+      "position": [
+        -1000,
+        -300
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "a1b1c1d1-0001-4001-8001-000000000008",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-800, -300]
+      "position": [
+        -800,
+        -300
+      ]
     },
     {
       "parameters": {
@@ -127,8 +177,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $vars.VOYAGE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.VOYAGE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -140,11 +196,15 @@
       "name": "Embed Chunks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, -150],
+      "position": [
+        -1000,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "One batched call for all of a document's chunks, not one call per chunk - Voyage's embeddings endpoint accepts an array of inputs."
+      "notes": "One batched call for all of a document's chunks, not one call per chunk - Voyage's embeddings endpoint accepts an array of inputs.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -154,19 +214,34 @@
       "name": "Prepare Chunk Rows",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/document_chunks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/document_chunks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -178,27 +253,48 @@
       "name": "Insert Chunks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-600, -150],
+      "position": [
+        -600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/knowledge_documents",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_documents",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $('Prepare Chunk Rows').first().json.document_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Prepare Chunk Rows').first().json.document_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -209,22 +305,38 @@
       "name": "Mark Ready",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, -150],
+      "position": [
+        -400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/activity_logs",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/activity_logs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -236,50 +348,138 @@
       "name": "Log Activity",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, -150],
+      "position": [
+        -200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     }
   ],
   "connections": {
     "Called From Dashboard (Process Document)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Fetch Document", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch Document": {
-      "main": [[{ "node": "Chunk Text", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Chunk Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Chunk Text": {
       "main": [
         [
-          { "node": "Build Ack Response", "type": "main", "index": 0 },
-          { "node": "Embed Chunks", "type": "main", "index": 0 }
+          {
+            "node": "Build Ack Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Embed Chunks",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Build Ack Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Embed Chunks": {
-      "main": [[{ "node": "Prepare Chunk Rows", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Chunk Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Chunk Rows": {
-      "main": [[{ "node": "Insert Chunks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Chunks": {
-      "main": [[{ "node": "Mark Ready", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Mark Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Mark Ready": {
-      "main": [[{ "node": "Log Activity", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Log Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

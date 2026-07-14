@@ -2,12 +2,17 @@
   "name": "AI - Process Request",
   "nodes": [
     {
-      "parameters": { "inputSource": "passthrough" },
+      "parameters": {
+        "inputSource": "passthrough"
+      },
       "id": "e62bebda-85be-4ad3-a127-db66032fb262",
       "name": "When Called",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [-1600, 0],
+      "position": [
+        -1600,
+        0
+      ],
       "notes": "Expected input: { prompt_key, variables: {...}, user_id, related_record_type?, related_record_id?, feature?, model?, max_tokens?, enable_web_search?, image_data?, image_media_type? }. enable_web_search added in Phase 7 for the Research Agent. image_data/image_media_type added in Phase 8 (base64, no data: prefix) for image analysis - everyone else leaves both unset."
     },
     {
@@ -18,25 +23,43 @@
       "name": "Capture Start",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1400, 0]
+      "position": [
+        -1400,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/prompts",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/prompts",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "prompt_key", "value": "=eq.{{ $json.prompt_key }}" },
-            { "name": "is_active", "value": "eq.true" },
-            { "name": "select", "value": "*" }
+            {
+              "name": "prompt_key",
+              "value": "=eq.{{ $json.prompt_key }}"
+            },
+            {
+              "name": "is_active",
+              "value": "eq.true"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
           ]
         },
         "options": {}
@@ -45,20 +68,27 @@
       "name": "Fetch Active Prompt",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, 0],
+      "position": [
+        -1200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const promptRow = $input.first().json[0];\nconst trigger = $('Capture Start').first().json;\nif (!promptRow) {\n  throw new Error(`No active prompt found for prompt_key: ${trigger.prompt_key}`);\n}\nconst variables = trigger.variables || {};\nfunction fill(template, vars) {\n  return template.replace(/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}/g, (match, key) => vars[key] !== undefined ? String(vars[key]) : '');\n}\nreturn [{\n  json: {\n    system_prompt: promptRow.system_prompt,\n    user_message: fill(promptRow.user_prompt_template, variables),\n    prompt_key: promptRow.prompt_key,\n    prompt_version: promptRow.version,\n    model: trigger.model || 'claude-opus-4-8',\n    max_tokens: trigger.max_tokens || 2048,\n    enable_web_search: !!trigger.enable_web_search,\n    image_data: trigger.image_data || null,\n    image_media_type: trigger.image_media_type || 'image/jpeg'\n  }\n}];"
+        "jsCode": "const promptRow = $input.first().json;\nconst trigger = $('Capture Start').first().json;\nif (!promptRow) {\n  throw new Error(`No active prompt found for prompt_key: ${trigger.prompt_key}`);\n}\nconst variables = trigger.variables || {};\nfunction fill(template, vars) {\n  return template.replace(/\\{\\{\\s*([a-zA-Z0-9_]+)\\s*\\}\\}/g, (match, key) => vars[key] !== undefined ? String(vars[key]) : '');\n}\nreturn [{\n  json: {\n    system_prompt: promptRow.system_prompt,\n    user_message: fill(promptRow.user_prompt_template, variables),\n    prompt_key: promptRow.prompt_key,\n    prompt_version: promptRow.version,\n    model: trigger.model || 'claude-opus-4-8',\n    max_tokens: trigger.max_tokens || 2048,\n    enable_web_search: !!trigger.enable_web_search,\n    image_data: trigger.image_data || null,\n    image_media_type: trigger.image_media_type || 'image/jpeg'\n  }\n}];"
       },
       "id": "e3a795bb-0057-42f6-afc1-93839606c85b",
       "name": "Fill Template",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, 0],
+      "position": [
+        -1000,
+        0
+      ],
       "notes": "Loads the versioned prompt (step 2 of the AI orchestration pattern) and fills {{variable}} placeholders (step 1: structured input received via trigger, applied here)."
     },
     {
@@ -68,9 +98,18 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "x-api-key", "value": "={{ $vars.ANTHROPIC_API_KEY }}" },
-            { "name": "anthropic-version", "value": "2023-06-01" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -82,11 +121,15 @@
       "name": "Call Claude",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, 0],
+      "position": [
+        -800,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Step 3 of the AI orchestration pattern. Model/max_tokens come from Fill Template so future callers can override per feature (e.g. cheaper model for simple classification). Phase 7: tools only added when enable_web_search is set (Research Agent) - server-side tool, Claude searches and answers in the same response, no client-side tool loop needed."
+      "notes": "Step 3 of the AI orchestration pattern. Model/max_tokens come from Fill Template so future callers can override per feature (e.g. cheaper model for simple classification). Phase 7: tools only added when enable_web_search is set (Research Agent) - server-side tool, Claude searches and answers in the same response, no client-side tool loop needed.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -96,20 +139,35 @@
       "name": "Validate & Parse Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, 0],
+      "position": [
+        -600,
+        0
+      ],
       "notes": "Step 4: validates the response (throws - triggering the Error Workflow - on refusal or empty content). Attempts JSON parse for structured-output prompts, falls back to raw text for prose prompts."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/ai_usage_log",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/ai_usage_log",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -121,11 +179,15 @@
       "name": "Log AI Usage",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, 0],
+      "position": [
+        -400,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "estimated_cost_usd is left null here - per-token pricing varies by model and changes over time, so cost is computed dashboard-side from model_used + token counts rather than hardcoded into this workflow."
+      "notes": "estimated_cost_usd is left null here - per-token pricing varies by model and changes over time, so cost is computed dashboard-side from model_used + token counts rather than hardcoded into this workflow.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -135,14 +197,17 @@
       "name": "Build Log Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, 0]
+      "position": [
+        -200,
+        0
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "wSNZrPXJH5JfZuwi",
           "mode": "list",
           "cachedResultName": "Core - Log Execution"
         },
@@ -152,7 +217,10 @@
       "name": "Log Execution",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
@@ -162,37 +230,112 @@
       "name": "Return Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [200, 0],
+      "position": [
+        200,
+        0
+      ],
       "notes": "Step 6: returns structured JSON to whichever workflow called this one."
     }
   ],
   "connections": {
     "When Called": {
-      "main": [[{ "node": "Capture Start", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Capture Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Capture Start": {
-      "main": [[{ "node": "Fetch Active Prompt", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Active Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Active Prompt": {
-      "main": [[{ "node": "Fill Template", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fill Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fill Template": {
-      "main": [[{ "node": "Call Claude", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call Claude": {
-      "main": [[{ "node": "Validate & Parse Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate & Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate & Parse Response": {
-      "main": [[{ "node": "Log AI Usage", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Log AI Usage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Log AI Usage": {
-      "main": [[{ "node": "Build Log Payload", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Log Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Log Payload": {
-      "main": [[{ "node": "Log Execution", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Log Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Log Execution": {
-      "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

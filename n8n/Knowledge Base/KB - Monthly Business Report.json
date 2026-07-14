@@ -3,30 +3,55 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "months", "monthsInterval": 1, "triggerAtDayOfMonth": 1, "triggerAtHour": 7, "triggerAtMinute": 0 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1,
+              "triggerAtDayOfMonth": 1,
+              "triggerAtHour": 7,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
       },
       "id": "e4e4f4a4-0004-4004-8004-000000000001",
       "name": "1st of Every Month at 7:00 AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-2000, 0]
+      "position": [
+        -2000,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -35,25 +60,40 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1800, 0],
+      "position": [
+        -1800,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "select", "value": "status,created_at,updated_at" }]
+          "parameters": [
+            {
+              "name": "select",
+              "value": "status,created_at,updated_at"
+            }
+          ]
         },
         "options": {}
       },
@@ -61,28 +101,47 @@
       "name": "Fetch All Schools",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, 0],
+      "position": [
+        -1600,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "eq.completed" },
-            { "name": "updated_at", "value": "=gte.{{ new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString() }}" },
-            { "name": "select", "value": "id" }
+            {
+              "name": "status",
+              "value": "eq.completed"
+            },
+            {
+              "name": "updated_at",
+              "value": "=gte.{{ new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString() }}"
+            },
+            {
+              "name": "select",
+              "value": "id"
+            }
           ]
         },
         "options": {}
@@ -91,27 +150,43 @@
       "name": "Fetch Tasks Completed",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, 0],
+      "position": [
+        -1400,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/knowledge_documents",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_documents",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "uploaded_at", "value": "=gte.{{ new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString() }}" },
-            { "name": "select", "value": "id,status" }
+            {
+              "name": "uploaded_at",
+              "value": "=gte.{{ new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString() }}"
+            },
+            {
+              "name": "select",
+              "value": "id,status"
+            }
           ]
         },
         "options": {}
@@ -120,27 +195,43 @@
       "name": "Fetch Documents This Month",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, 0],
+      "position": [
+        -1200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/business_memory",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/business_memory",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "category", "value": "eq.revenue" },
-            { "name": "select", "value": "key,value" }
+            {
+              "name": "category",
+              "value": "eq.revenue"
+            },
+            {
+              "name": "select",
+              "value": "key,value"
+            }
           ]
         },
         "options": {}
@@ -149,28 +240,47 @@
       "name": "Fetch Revenue Notes",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, 0],
+      "position": [
+        -1000,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/finance_entries",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/finance_entries",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "occurred_on", "value": "=gte.{{ new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().split('T')[0] }}" },
-            { "name": "occurred_on", "value": "=lte.{{ new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().split('T')[0] }}" },
-            { "name": "select", "value": "entry_type,category,amount,currency" }
+            {
+              "name": "occurred_on",
+              "value": "=gte.{{ new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString().split('T')[0] }}"
+            },
+            {
+              "name": "occurred_on",
+              "value": "=lte.{{ new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().split('T')[0] }}"
+            },
+            {
+              "name": "select",
+              "value": "entry_type,category,amount,currency"
+            }
           ]
         },
         "options": {}
@@ -179,38 +289,48 @@
       "name": "Fetch Finance Entries This Month",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-900, 0],
+      "position": [
+        -900,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Phase 7 addition: finance_entries now exists (it didn't in Phase 6, when revenue_notes only had business_memory to draw on). Real income/expense totals take priority over the manual business_memory notes when entries exist."
+      "notes": "Phase 7 addition: finance_entries now exists (it didn't in Phase 6, when revenue_notes only had business_memory to draw on). Real income/expense totals take priority over the manual business_memory notes when entries exist.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const schools = $('Fetch All Schools').first().json || [];\nconst tasksCompleted = $('Fetch Tasks Completed').first().json || [];\nconst documents = $('Fetch Documents This Month').first().json || [];\nconst revenue = $('Fetch Revenue Notes').first().json || [];\nconst financeEntries = $input.first().json || [];\n\nconst now = new Date();\nconst periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst periodEnd = new Date(now.getFullYear(), now.getMonth(), 0);\n\nconst newLeads = schools.filter(s => new Date(s.created_at) >= periodStart);\n// Best-effort proxy, not a real status-history log: a school counts as\n// converted/lost 'this month' if its status matches AND it was touched\n// (updated_at) within the period - see documentation/knowledge-base-module.md.\nconst converted = schools.filter(s => s.status === 'customer' && new Date(s.updated_at) >= periodStart);\nconst lost = schools.filter(s => s.status === 'lost_lead' && new Date(s.updated_at) >= periodStart);\n\nconst pipelineCounts = schools.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {});\nconst pipelineMovementText = Object.entries(pipelineCounts).map(([status, count]) => `- ${status}: ${count}`).join('\\n') || 'No pipeline data.';\n\nconst kbActivityText = `${documents.length} document(s) uploaded, ${documents.filter(d => d.status === 'ready').length} processed successfully.`;\n\nlet revenueText;\nif (financeEntries.length) {\n  const income = financeEntries.filter(e => e.entry_type === 'income').reduce((sum, e) => sum + Number(e.amount), 0);\n  const expenses = financeEntries.filter(e => e.entry_type === 'expense').reduce((sum, e) => sum + Number(e.amount), 0);\n  const currency = financeEntries[0].currency;\n  revenueText = `Income: ${currency} ${income.toFixed(2)}\\nExpenses: ${currency} ${expenses.toFixed(2)}\\nNet: ${currency} ${(income - expenses).toFixed(2)}`;\n} else {\n  revenueText = revenue.length\n    ? revenue.map(r => `- ${r.key}: ${r.value}`).join('\\n')\n    : 'Not tracked yet.';\n}\n\nreturn [{\n  json: {\n    period_start: periodStart.toISOString().split('T')[0],\n    period_end: periodEnd.toISOString().split('T')[0],\n    period_label: periodStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),\n    pipeline_movement: pipelineMovementText,\n    pipeline_counts: pipelineCounts,\n    new_leads_count: newLeads.length,\n    converted_count: converted.length,\n    lost_count: lost.length,\n    tasks_completed_count: tasksCompleted.length,\n    kb_activity_summary: kbActivityText,\n    revenue_notes: revenueText\n  }\n}];"
+        "jsCode": "const schools = $('Fetch All Schools').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst tasksCompleted = $('Fetch Tasks Completed').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst documents = $('Fetch Documents This Month').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst revenue = $('Fetch Revenue Notes').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst financeEntries = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\n\nconst now = new Date();\nconst periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);\nconst periodEnd = new Date(now.getFullYear(), now.getMonth(), 0);\n\nconst newLeads = schools.filter(s => new Date(s.created_at) >= periodStart);\n// Best-effort proxy, not a real status-history log: a school counts as\n// converted/lost 'this month' if its status matches AND it was touched\n// (updated_at) within the period - see documentation/knowledge-base-module.md.\nconst converted = schools.filter(s => s.status === 'customer' && new Date(s.updated_at) >= periodStart);\nconst lost = schools.filter(s => s.status === 'lost_lead' && new Date(s.updated_at) >= periodStart);\n\nconst pipelineCounts = schools.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {});\nconst pipelineMovementText = Object.entries(pipelineCounts).map(([status, count]) => `- ${status}: ${count}`).join('\\n') || 'No pipeline data.';\n\nconst kbActivityText = `${documents.length} document(s) uploaded, ${documents.filter(d => d.status === 'ready').length} processed successfully.`;\n\nlet revenueText;\nif (financeEntries.length) {\n  const income = financeEntries.filter(e => e.entry_type === 'income').reduce((sum, e) => sum + Number(e.amount), 0);\n  const expenses = financeEntries.filter(e => e.entry_type === 'expense').reduce((sum, e) => sum + Number(e.amount), 0);\n  const currency = financeEntries[0].currency;\n  revenueText = `Income: ${currency} ${income.toFixed(2)}\\nExpenses: ${currency} ${expenses.toFixed(2)}\\nNet: ${currency} ${(income - expenses).toFixed(2)}`;\n} else {\n  revenueText = revenue.length\n    ? revenue.map(r => `- ${r.key}: ${r.value}`).join('\\n')\n    : 'Not tracked yet.';\n}\n\nreturn [{\n  json: {\n    period_start: periodStart.toISOString().split('T')[0],\n    period_end: periodEnd.toISOString().split('T')[0],\n    period_label: periodStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),\n    pipeline_movement: pipelineMovementText,\n    pipeline_counts: pipelineCounts,\n    new_leads_count: newLeads.length,\n    converted_count: converted.length,\n    lost_count: lost.length,\n    tasks_completed_count: tasksCompleted.length,\n    kb_activity_summary: kbActivityText,\n    revenue_notes: revenueText\n  }\n}];"
       },
       "id": "e4e4f4a4-0004-4004-8004-000000000007",
       "name": "Build Report Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, 0]
+      "position": [
+        -800,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'monthly_business_report',\n    user_id: userId,\n    feature: 'monthly_business_report',\n    variables: {\n      period_label: input.period_label,\n      pipeline_movement: input.pipeline_movement,\n      new_leads_count: input.new_leads_count,\n      converted_count: input.converted_count,\n      lost_count: input.lost_count,\n      tasks_completed_count: input.tasks_completed_count,\n      kb_activity_summary: input.kb_activity_summary,\n      revenue_notes: input.revenue_notes\n    }\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json.id;\nreturn [{\n  json: {\n    prompt_key: 'monthly_business_report',\n    user_id: userId,\n    feature: 'monthly_business_report',\n    variables: {\n      period_label: input.period_label,\n      pipeline_movement: input.pipeline_movement,\n      new_leads_count: input.new_leads_count,\n      converted_count: input.converted_count,\n      lost_count: input.lost_count,\n      tasks_completed_count: input.tasks_completed_count,\n      kb_activity_summary: input.kb_activity_summary,\n      revenue_notes: input.revenue_notes\n    }\n  }\n}];"
       },
       "id": "e4e4f4a4-0004-4004-8004-000000000008",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -220,29 +340,47 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-400, 0]
+      "position": [
+        -400,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const aiResult = $input.first().json;\nconst input = $('Build Report Input').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nconst output = aiResult.output;\n\nreturn [{\n  json: {\n    user_id: userId,\n    period_start: input.period_start,\n    period_end: input.period_end,\n    content_text: output.report_text,\n    content_json: { pipeline_counts: input.pipeline_counts, new_leads_count: input.new_leads_count, converted_count: input.converted_count, lost_count: input.lost_count, tasks_completed_count: input.tasks_completed_count },\n    insights: output.insights || []\n  }\n}];"
+        "jsCode": "const aiResult = $input.first().json;\nconst input = $('Build Report Input').first().json;\nconst userId = $('Get Primary User').first().json.id;\nconst output = aiResult.output;\n\nreturn [{\n  json: {\n    user_id: userId,\n    period_start: input.period_start,\n    period_end: input.period_end,\n    content_text: output.report_text,\n    content_json: { pipeline_counts: input.pipeline_counts, new_leads_count: input.new_leads_count, converted_count: input.converted_count, lost_count: input.lost_count, tasks_completed_count: input.tasks_completed_count },\n    insights: output.insights || []\n  }\n}];"
       },
       "id": "e4e4f4a4-0004-4004-8004-00000000000a",
       "name": "Prepare Report Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, 0]
+      "position": [
+        -200,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/monthly_reports?on_conflict=user_id,period_start",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/monthly_reports?on_conflict=user_id,period_start",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -254,10 +392,14 @@
       "name": "Upsert Monthly Report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -267,14 +409,17 @@
       "name": "Build Notification Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "YEHmYg50iosaKxi5",
           "mode": "list",
           "cachedResultName": "Notifications - Send Notification"
         },
@@ -284,29 +429,47 @@
       "name": "Notify",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [400, -150]
+      "position": [
+        400,
+        -150
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const insights = $('Prepare Report Insert').first().json.insights || [];\nconst userId = $('Prepare Report Insert').first().json.user_id;\nreturn [{\n  json: {\n    rows: insights.map(i => ({ user_id: userId, category: i.category, title: i.title, detail: i.detail }))\n  }\n}];"
+        "jsCode": "const insights = $('Prepare Report Insert').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0).insights || [];\nconst userId = $('Prepare Report Insert').first().json.user_id;\nreturn [{\n  json: {\n    rows: insights.map(i => ({ user_id: userId, category: i.category, title: i.title, detail: i.detail }))\n  }\n}];"
       },
       "id": "e4e4f4a4-0004-4004-8004-00000000000e",
       "name": "Prepare Insight Rows",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [200, 150]
+      "position": [
+        200,
+        150
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/ai_insights",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/ai_insights",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -318,60 +481,176 @@
       "name": "Insert Insights",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [400, 150],
+      "position": [
+        400,
+        150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "No-ops safely when insights is an empty array - PostgREST accepts an empty array body and inserts nothing."
+      "notes": "No-ops safely when insights is an empty array - PostgREST accepts an empty array body and inserts nothing.",
+      "alwaysOutputData": true
     }
   ],
   "connections": {
     "1st of Every Month at 7:00 AM": {
-      "main": [[{ "node": "Get Primary User", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Fetch All Schools", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch All Schools",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch All Schools": {
-      "main": [[{ "node": "Fetch Tasks Completed", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Tasks Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Tasks Completed": {
-      "main": [[{ "node": "Fetch Documents This Month", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Documents This Month",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Documents This Month": {
-      "main": [[{ "node": "Fetch Revenue Notes", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Revenue Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Revenue Notes": {
-      "main": [[{ "node": "Fetch Finance Entries This Month", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Finance Entries This Month",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Finance Entries This Month": {
-      "main": [[{ "node": "Build Report Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Report Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Report Input": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Report Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Report Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Report Insert": {
-      "main": [[{ "node": "Upsert Monthly Report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Monthly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Monthly Report": {
       "main": [
         [
-          { "node": "Build Notification Payload", "type": "main", "index": 0 },
-          { "node": "Prepare Insight Rows", "type": "main", "index": 0 }
+          {
+            "node": "Build Notification Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Insight Rows",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Build Notification Payload": {
-      "main": [[{ "node": "Notify", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Insight Rows": {
-      "main": [[{ "node": "Insert Insights", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

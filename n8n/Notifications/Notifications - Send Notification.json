@@ -2,24 +2,41 @@
   "name": "Notifications - Send Notification",
   "nodes": [
     {
-      "parameters": { "inputSource": "passthrough" },
+      "parameters": {
+        "inputSource": "passthrough"
+      },
       "id": "5f1147eb-060d-4d0d-8139-b0762bcd1e2b",
       "name": "When Called",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [-400, 0]
+      "position": [
+        -400,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/notifications",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/notifications",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -31,11 +48,15 @@
       "name": "Insert Notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, 0],
+      "position": [
+        -200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "channel is stored either way, but only 'in_app' actually delivers anywhere today (the dashboard's Notifications view). 'email'/'whatsapp' delivery activates once those integrations exist in later phases."
+      "notes": "channel is stored either way, but only 'in_app' actually delivers anywhere today (the dashboard's Notifications view). 'email'/'whatsapp' delivery activates once those integrations exist in later phases.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -45,15 +66,34 @@
       "name": "Return Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     }
   ],
   "connections": {
     "When Called": {
-      "main": [[{ "node": "Insert Notification", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Notification": {
-      "main": [[{ "node": "Return Result", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

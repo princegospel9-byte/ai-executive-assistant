@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Analyze Goal)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2000, 0],
-      "notes": "Requires header x-automation-secret. Body: { goal_id }."
+      "position": [
+        -2000,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { goal_id }.",
+      "webhookId": "5c9c60ed-18bc-480f-a502-3f23dfcf662b"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { goal_id: payload.goal_id, auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { goal_id: payload.goal_id, auth_ok: authOk } }];"
       },
       "id": "m2m2b2c2-0012-4012-8012-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "m2m2b2c2-0012-4012-8012-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1400, 200]
+      "position": [
+        -1400,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/company_goals",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/company_goals",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.goal_id }}" },
-            { "name": "select", "value": "*" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.goal_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
           ]
         },
         "options": {}
@@ -82,29 +117,51 @@
       "name": "Fetch Goal",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/goal_progress",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/goal_progress",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "goal_id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.goal_id }}" },
-            { "name": "order", "value": "recorded_at.desc" },
-            { "name": "limit", "value": "10" },
-            { "name": "select", "value": "current_value,note,recorded_at" }
+            {
+              "name": "goal_id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.goal_id }}"
+            },
+            {
+              "name": "order",
+              "value": "recorded_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            },
+            {
+              "name": "select",
+              "value": "current_value,note,recorded_at"
+            }
           ]
         },
         "options": {}
@@ -113,27 +170,43 @@
       "name": "Fetch Progress History",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "eq.customer" },
-            { "name": "select", "value": "id" }
+            {
+              "name": "status",
+              "value": "eq.customer"
+            },
+            {
+              "name": "select",
+              "value": "id"
+            }
           ]
         },
         "options": {}
@@ -142,28 +215,35 @@
       "name": "Fetch Customer Count",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, -150],
+      "position": [
+        -1000,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Only meaningfully used when the goal's goal_type is 'customer_count' - computed regardless since it's a cheap query, ignored otherwise."
+      "notes": "Only meaningfully used when the goal's goal_type is 'customer_count' - computed regardless since it's a cheap query, ignored otherwise.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const goalRows = $('Fetch Goal').first().json;\nconst goal = Array.isArray(goalRows) ? goalRows[0] : goalRows;\nif (!goal) {\n  throw new Error('Goal not found: ' + $('Normalize & Check Auth').first().json.goal_id);\n}\nconst history = $('Fetch Progress History').first().json || [];\nconst customers = $input.first().json || [];\n\nlet currentValue;\nif (goal.goal_type === 'customer_count') {\n  currentValue = customers.length;\n} else if (history.length && history[0].current_value !== null) {\n  currentValue = history[0].current_value;\n} else {\n  currentValue = null;\n}\n\nconst historyText = history.length\n  ? history.map(h => `- ${new Date(h.recorded_at).toLocaleDateString()}: ${h.current_value ?? 'no value'}${h.note ? ' - ' + h.note : ''}`).join('\\n')\n  : 'No progress history recorded yet.';\n\nreturn [{\n  json: {\n    prompt_key: 'goal_progress_analysis',\n    user_id: goal.user_id,\n    feature: 'goal_progress_analysis',\n    related_record_type: 'company_goal',\n    related_record_id: goal.id,\n    goal_id: goal.id,\n    current_value: currentValue,\n    variables: {\n      title: goal.title,\n      target_value: goal.target_value ?? 'not set',\n      target_date: goal.target_date ?? 'not set',\n      current_value: currentValue ?? 'unknown',\n      progress_history: historyText\n    }\n  }\n}];"
+        "jsCode": "const goalRows = $('Fetch Goal').first().json;\nconst goal = Array.isArray(goalRows) ? goalRows[0] : goalRows;\nif (!goal) {\n  throw new Error('Goal not found: ' + $('Normalize & Check Auth').first().json.goal_id);\n}\nconst history = $('Fetch Progress History').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst customers = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\n\nlet currentValue;\nif (goal.goal_type === 'customer_count') {\n  currentValue = customers.length;\n} else if (history.length && history[0].current_value !== null) {\n  currentValue = history[0].current_value;\n} else {\n  currentValue = null;\n}\n\nconst historyText = history.length\n  ? history.map(h => `- ${new Date(h.recorded_at).toLocaleDateString()}: ${h.current_value ?? 'no value'}${h.note ? ' - ' + h.note : ''}`).join('\\n')\n  : 'No progress history recorded yet.';\n\nreturn [{\n  json: {\n    prompt_key: 'goal_progress_analysis',\n    user_id: goal.user_id,\n    feature: 'goal_progress_analysis',\n    related_record_type: 'company_goal',\n    related_record_id: goal.id,\n    goal_id: goal.id,\n    current_value: currentValue,\n    variables: {\n      title: goal.title,\n      target_value: goal.target_value ?? 'not set',\n      target_date: goal.target_date ?? 'not set',\n      current_value: currentValue ?? 'unknown',\n      progress_history: historyText\n    }\n  }\n}];"
       },
       "id": "m2m2b2c2-0012-4012-8012-000000000008",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -173,7 +253,10 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-600, -150]
+      "position": [
+        -600,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -183,19 +266,34 @@
       "name": "Prepare Progress Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/goal_progress",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/goal_progress",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -207,10 +305,14 @@
       "name": "Insert Progress Entry",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, -150],
+      "position": [
+        -200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -220,57 +322,157 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "m2m2b2c2-0012-4012-8012-00000000000d",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Analyze Goal)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Fetch Goal", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch Goal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch Goal": {
-      "main": [[{ "node": "Fetch Progress History", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Progress History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Progress History": {
-      "main": [[{ "node": "Fetch Customer Count", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Customer Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Customer Count": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Progress Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Progress Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Progress Insert": {
-      "main": [[{ "node": "Insert Progress Entry", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Progress Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Progress Entry": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

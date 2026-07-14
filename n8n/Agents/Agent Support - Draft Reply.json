@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Draft Reply)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2200, 0],
-      "notes": "Requires header x-automation-secret. Body: { ticket_id }. Reuses the Phase 6 document-RAG pattern (match_document_chunks) for product-doc grounding, and the Phase 5 approval-linking pattern for the send gate."
+      "position": [
+        -2200,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { ticket_id }. Reuses the Phase 6 document-RAG pattern (match_document_chunks) for product-doc grounding, and the Phase 5 approval-linking pattern for the send gate.",
+      "webhookId": "d044a94e-47fc-4c3d-8685-3a602052b7c3"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { ticket_id: payload.ticket_id, auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { ticket_id: payload.ticket_id, auth_ok: authOk } }];"
       },
       "id": "h7h7c7d7-0007-4007-8007-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-2000, 0]
+      "position": [
+        -2000,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "h7h7c7d7-0007-4007-8007-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1600, 200]
+      "position": [
+        -1600,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.ticket_id }}" },
-            { "name": "select", "value": "*" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.ticket_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
           ]
         },
         "options": {}
@@ -82,10 +117,14 @@
       "name": "Fetch Ticket",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, -150],
+      "position": [
+        -1600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -95,7 +134,10 @@
       "name": "Require Ticket Found",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1400, -150]
+      "position": [
+        -1400,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -104,8 +146,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $vars.VOYAGE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.VOYAGE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -117,21 +165,34 @@
       "name": "Embed Ticket",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/match_document_chunks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/match_document_chunks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -143,27 +204,34 @@
       "name": "Vector Search Docs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, -150],
+      "position": [
+        -1000,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const ticket = $('Require Ticket Found').first().json;\nconst chunks = $input.first().json || [];\n\nconst docText = chunks.length\n  ? 'Relevant product documentation:\\n' + chunks.map(c => `- ${c.content}`).join('\\n\\n')\n  : 'No relevant documentation found.';\n\nconst context = `Ticket subject: ${ticket.subject}\\nTicket description: ${ticket.description}\\nPriority: ${ticket.priority}\\n\\n${docText}`;\n\nreturn [{\n  json: {\n    prompt_key: 'agent_support',\n    user_id: ticket.user_id,\n    feature: 'agent_support',\n    related_record_type: 'support_ticket',\n    related_record_id: ticket.id,\n    ticket_id: ticket.id,\n    contact_email: ticket.contact_email,\n    subject: ticket.subject,\n    variables: {\n      subtask: 'Draft a reply to this support ticket.',\n      context\n    }\n  }\n}];"
+        "jsCode": "const ticket = $('Require Ticket Found').first().json;\nconst chunks = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\n\nconst docText = chunks.length\n  ? 'Relevant product documentation:\\n' + chunks.map(c => `- ${c.content}`).join('\\n\\n')\n  : 'No relevant documentation found.';\n\nconst context = `Ticket subject: ${ticket.subject}\\nTicket description: ${ticket.description}\\nPriority: ${ticket.priority}\\n\\n${docText}`;\n\nreturn [{\n  json: {\n    prompt_key: 'agent_support',\n    user_id: ticket.user_id,\n    feature: 'agent_support',\n    related_record_type: 'support_ticket',\n    related_record_id: ticket.id,\n    ticket_id: ticket.id,\n    contact_email: ticket.contact_email,\n    subject: ticket.subject,\n    variables: {\n      subtask: 'Draft a reply to this support ticket.',\n      context\n    }\n  }\n}];"
       },
       "id": "h7h7c7d7-0007-4007-8007-000000000009",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -173,7 +241,10 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-600, -150]
+      "position": [
+        -600,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -183,24 +254,44 @@
       "name": "Prepare Ticket Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $json.ticket_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $json.ticket_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -211,10 +302,14 @@
       "name": "Update Ticket",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, -150],
+      "position": [
+        -200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -224,14 +319,17 @@
       "name": "Build Approval Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "cvI1POuIPIfKsO8J",
           "mode": "list",
           "cachedResultName": "Core - Request Approval"
         },
@@ -241,24 +339,44 @@
       "name": "Call Request Approval",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $('Build Approval Request').first().json.ticket_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Build Approval Request').first().json.ticket_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -269,10 +387,14 @@
       "name": "Link Approval",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [400, -150],
+      "position": [
+        400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -282,69 +404,201 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, -150]
+      "position": [
+        600,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "h7h7c7d7-0007-4007-8007-000000000011",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [800, -150]
+      "position": [
+        800,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Draft Reply)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Fetch Ticket", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch Ticket": {
-      "main": [[{ "node": "Require Ticket Found", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Require Ticket Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Require Ticket Found": {
-      "main": [[{ "node": "Embed Ticket", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Embed Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Embed Ticket": {
-      "main": [[{ "node": "Vector Search Docs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Vector Search Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Vector Search Docs": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Ticket Update", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Ticket Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Ticket Update": {
-      "main": [[{ "node": "Update Ticket", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Update Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Update Ticket": {
-      "main": [[{ "node": "Build Approval Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Approval Request": {
-      "main": [[{ "node": "Call Request Approval", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call Request Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call Request Approval": {
-      "main": [[{ "node": "Link Approval", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Link Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Link Approval": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

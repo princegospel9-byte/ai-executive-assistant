@@ -3,30 +3,57 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1, "triggerAtDay": [0], "triggerAtHour": 18, "triggerAtMinute": 0 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [
+                0
+              ],
+              "triggerAtHour": 18,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
       },
       "id": "1375f373-d00e-4216-82a4-8188e17363fc",
       "name": "Every Sunday at 6:00 PM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -35,28 +62,47 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, 0],
+      "position": [
+        -1600,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "eq.completed" },
-            { "name": "updated_at", "value": "=gte.{{ new Date(Date.now() - 7 * 86400000).toISOString() }}" },
-            { "name": "select", "value": "title,priority" }
+            {
+              "name": "status",
+              "value": "eq.completed"
+            },
+            {
+              "name": "updated_at",
+              "value": "=gte.{{ new Date(Date.now() - 7 * 86400000).toISOString() }}"
+            },
+            {
+              "name": "select",
+              "value": "title,priority"
+            }
           ]
         },
         "options": {}
@@ -65,28 +111,47 @@
       "name": "Fetch Completed Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, 0],
+      "position": [
+        -1400,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(pending,in_progress)" },
-            { "name": "order", "value": "priority.desc" },
-            { "name": "select", "value": "title,priority,due_date" }
+            {
+              "name": "status",
+              "value": "in.(pending,in_progress)"
+            },
+            {
+              "name": "order",
+              "value": "priority.desc"
+            },
+            {
+              "name": "select",
+              "value": "title,priority,due_date"
+            }
           ]
         },
         "options": {}
@@ -95,29 +160,51 @@
       "name": "Fetch Pending Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, 0],
+      "position": [
+        -1200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/calendar_events",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/calendar_events",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "start_time", "value": "=gte.{{ new Date(Date.now() - 7 * 86400000).toISOString() }}" },
-            { "name": "sync_status", "value": "eq.synced" },
-            { "name": "order", "value": "start_time.asc" },
-            { "name": "select", "value": "title,start_time" }
+            {
+              "name": "start_time",
+              "value": "=gte.{{ new Date(Date.now() - 7 * 86400000).toISOString() }}"
+            },
+            {
+              "name": "sync_status",
+              "value": "eq.synced"
+            },
+            {
+              "name": "order",
+              "value": "start_time.asc"
+            },
+            {
+              "name": "select",
+              "value": "title,start_time"
+            }
           ]
         },
         "options": {}
@@ -126,27 +213,43 @@
       "name": "Fetch Events This Week",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, 0],
+      "position": [
+        -1000,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "neq.lost_lead" },
-            { "name": "select", "value": "school_name,status,interest_level,next_follow_up_date,created_at" }
+            {
+              "name": "status",
+              "value": "neq.lost_lead"
+            },
+            {
+              "name": "select",
+              "value": "school_name,status,interest_level,next_follow_up_date,created_at"
+            }
           ]
         },
         "options": {}
@@ -155,38 +258,48 @@
       "name": "Fetch Active Pipeline",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-900, 0],
+      "position": [
+        -900,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Phase 6 addition: the daily briefing got a pipeline section in Phase 5 (0013_crm_prompts.sql); the weekly review never did until now. See documentation/knowledge-base-module.md."
+      "notes": "Phase 6 addition: the daily briefing got a pipeline section in Phase 5 (0013_crm_prompts.sql); the weekly review never did until now. See documentation/knowledge-base-module.md.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const completed = $('Fetch Completed Tasks').first().json;\nconst pending = $('Fetch Pending Tasks').first().json;\nconst events = $('Fetch Events This Week').first().json;\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\n\nconst completedText = (completed || []).length ? completed.map(t => `- ${t.title}`).join('\\n') : 'None';\nconst pendingText = (pending || []).length\n  ? pending.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleDateString() : ''})`).join('\\n')\n  : 'None';\nconst eventsText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleDateString()}: ${e.title}`).join('\\n')\n  : 'No notable events';\n\nconst now = new Date();\nconst weekStart = new Date(now.getTime() - 7 * 86400000);\n\nconst newLeads = pipeline.filter(s => new Date(s.created_at) >= weekStart);\nconst pipelineCounts = pipeline.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {});\nconst pipelineText = pipeline.length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${status}: ${count}`).join('\\n')\n  : 'No active pipeline.';\n\nreturn [{\n  json: {\n    completed_tasks: completedText,\n    pending_tasks: pendingText,\n    events_this_week: eventsText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    week_range: `${weekStart.toLocaleDateString()} - ${now.toLocaleDateString()}`,\n    week_start_date: weekStart.toISOString().split('T')[0],\n    new_leads_count: newLeads.length,\n    pipeline_summary: pipelineText,\n    pipeline_counts: pipelineCounts\n  }\n}];"
+        "jsCode": "const completed = $('Fetch Completed Tasks').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0);\nconst pending = $('Fetch Pending Tasks').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0);\nconst events = $('Fetch Events This Week').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0);\nconst pipeline = $('Fetch Active Pipeline').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\n\nconst completedText = (completed || []).length ? completed.map(t => `- ${t.title}`).join('\\n') : 'None';\nconst pendingText = (pending || []).length\n  ? pending.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleDateString() : ''})`).join('\\n')\n  : 'None';\nconst eventsText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleDateString()}: ${e.title}`).join('\\n')\n  : 'No notable events';\n\nconst now = new Date();\nconst weekStart = new Date(now.getTime() - 7 * 86400000);\n\nconst newLeads = pipeline.filter(s => new Date(s.created_at) >= weekStart);\nconst pipelineCounts = pipeline.reduce((acc, s) => { acc[s.status] = (acc[s.status] || 0) + 1; return acc; }, {});\nconst pipelineText = pipeline.length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${status}: ${count}`).join('\\n')\n  : 'No active pipeline.';\n\nreturn [{\n  json: {\n    completed_tasks: completedText,\n    pending_tasks: pendingText,\n    events_this_week: eventsText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    week_range: `${weekStart.toLocaleDateString()} - ${now.toLocaleDateString()}`,\n    week_start_date: weekStart.toISOString().split('T')[0],\n    new_leads_count: newLeads.length,\n    pipeline_summary: pipelineText,\n    pipeline_counts: pipelineCounts\n  }\n}];"
       },
       "id": "c9c1021a-8469-4b09-97f3-e902b926b138",
       "name": "Build Review Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, 0]
+      "position": [
+        -800,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'weekly_review',\n    user_id: userId,\n    feature: 'weekly_review',\n    variables: {\n      week_range: input.week_range,\n      completed_count: input.completed_count,\n      completed_tasks: input.completed_tasks,\n      pending_count: input.pending_count,\n      pending_tasks: input.pending_tasks,\n      events_this_week: input.events_this_week,\n      new_leads_count: input.new_leads_count,\n      pipeline_summary: input.pipeline_summary\n    }\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json.id;\nreturn [{\n  json: {\n    prompt_key: 'weekly_review',\n    user_id: userId,\n    feature: 'weekly_review',\n    variables: {\n      week_range: input.week_range,\n      completed_count: input.completed_count,\n      completed_tasks: input.completed_tasks,\n      pending_count: input.pending_count,\n      pending_tasks: input.pending_tasks,\n      events_this_week: input.events_this_week,\n      new_leads_count: input.new_leads_count,\n      pipeline_summary: input.pipeline_summary\n    }\n  }\n}];"
       },
       "id": "e942ad42-b8f3-4cc9-8291-999cb9c695ee",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -196,29 +309,47 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-400, 0]
+      "position": [
+        -400,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const aiResult = $input.first().json;\nconst input = $('Build Review Input').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\n\nreturn [{\n  json: {\n    user_id: userId,\n    week_start_date: input.week_start_date,\n    content_text: aiResult.output,\n    content_json: { completed_count: input.completed_count, pending_count: input.pending_count, new_leads_count: input.new_leads_count, pipeline_counts: input.pipeline_counts },\n    sent_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const aiResult = $input.first().json;\nconst input = $('Build Review Input').first().json;\nconst userId = $('Get Primary User').first().json.id;\n\nreturn [{\n  json: {\n    user_id: userId,\n    week_start_date: input.week_start_date,\n    content_text: aiResult.output,\n    content_json: { completed_count: input.completed_count, pending_count: input.pending_count, new_leads_count: input.new_leads_count, pipeline_counts: input.pipeline_counts },\n    sent_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "a282cee7-a02e-47ec-bc4e-d910ea59e7ad",
       "name": "Prepare Review Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, 0]
+      "position": [
+        -200,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/weekly_reviews?on_conflict=user_id,week_start_date",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/weekly_reviews?on_conflict=user_id,week_start_date",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -230,10 +361,14 @@
       "name": "Upsert Weekly Review",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -243,14 +378,17 @@
       "name": "Build Notification Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [200, 0]
+      "position": [
+        200,
+        0
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "YEHmYg50iosaKxi5",
           "mode": "list",
           "cachedResultName": "Notifications - Send Notification"
         },
@@ -260,45 +398,144 @@
       "name": "Notify",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [400, 0]
+      "position": [
+        400,
+        0
+      ]
     }
   ],
   "connections": {
     "Every Sunday at 6:00 PM": {
-      "main": [[{ "node": "Get Primary User", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Fetch Completed Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Completed Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Completed Tasks": {
-      "main": [[{ "node": "Fetch Pending Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Pending Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Pending Tasks": {
-      "main": [[{ "node": "Fetch Events This Week", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Events This Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Events This Week": {
-      "main": [[{ "node": "Fetch Active Pipeline", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Active Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Active Pipeline": {
-      "main": [[{ "node": "Build Review Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Review Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Review Input": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Review Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Review Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Review Insert": {
-      "main": [[{ "node": "Upsert Weekly Review", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Weekly Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Weekly Review": {
-      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Notification Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Notification Payload": {
-      "main": [[{ "node": "Notify", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

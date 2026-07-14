@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Dictation Cleanup)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1400, 0],
-      "notes": "Requires header x-automation-secret. Body: { raw_text, target_type }."
+      "position": [
+        -1400,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { raw_text, target_type }.",
+      "webhookId": "db7e0288-2bf5-4cd9-95f2-ffdbbbef5f4f"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { raw_text: payload.raw_text || '', target_type: payload.target_type || 'note', auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { raw_text: payload.raw_text || '', target_type: payload.target_type || 'note', auth_ok: authOk } }];"
       },
       "id": "k0k0f0a0-0010-4010-8010-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1200, 0]
+      "position": [
+        -1200,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1000, 0]
+      "position": [
+        -1000,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "k0k0f0a0-0010-4010-8010-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-800, 200]
+      "position": [
+        -800,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -82,27 +117,34 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, -150],
+      "position": [
+        -800,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const input = $('Normalize & Check Auth').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'dictation_cleanup',\n    user_id: userId,\n    feature: 'dictation_cleanup',\n    variables: { target_type: input.target_type, raw_text: input.raw_text }\n  }\n}];"
+        "jsCode": "const input = $('Normalize & Check Auth').first().json;\nconst userId = $('Get Primary User').first().json.id;\nreturn [{\n  json: {\n    prompt_key: 'dictation_cleanup',\n    user_id: userId,\n    feature: 'dictation_cleanup',\n    variables: { target_type: input.target_type, raw_text: input.raw_text }\n  }\n}];"
       },
       "id": "k0k0f0a0-0010-4010-8010-000000000006",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, -150]
+      "position": [
+        -600,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -112,7 +154,10 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -122,45 +167,113 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, -150]
+      "position": [
+        -200,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "k0k0f0a0-0010-4010-8010-000000000009",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Dictation Cleanup)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Create Task)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1200, 0],
-      "notes": "Requires header x-automation-secret. Body: { email_id }. Builds the task directly from the email's existing analysis - no extra Claude call needed."
+      "position": [
+        -1200,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { email_id }. Builds the task directly from the email's existing analysis - no extra Claude call needed.",
+      "webhookId": "9f00ecf2-721e-47d7-9f77-a1ff6e2424e8"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { email_id: payload.email_id, auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { email_id: payload.email_id, auth_ok: authOk } }];"
       },
       "id": "8c206c48-b8a6-4bcc-8aff-648fc06cb530",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, 0]
+      "position": [
+        -1000,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-800, 0]
+      "position": [
+        -800,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "fbe03ce0-d533-423e-9fee-ef3fb7373cc3",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-600, 200]
+      "position": [
+        -600,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/emails",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/emails",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.email_id }}" },
-            { "name": "select", "value": "*,email_analysis(*)" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.email_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*,email_analysis(*)"
+            }
           ]
         },
         "options": {}
@@ -82,10 +117,14 @@
       "name": "Fetch Email With Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-600, -150],
+      "position": [
+        -600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -95,19 +134,34 @@
       "name": "Prepare Task From Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -119,10 +173,14 @@
       "name": "Insert Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, -150],
+      "position": [
+        -200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -132,45 +190,113 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "3633a81d-3a77-4b00-aa23-c19e8d9d4adc",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Create Task)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Fetch Email With Analysis", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch Email With Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch Email With Analysis": {
-      "main": [[{ "node": "Prepare Task From Email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Task From Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Task From Email": {
-      "main": [[{ "node": "Insert Task", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Task": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

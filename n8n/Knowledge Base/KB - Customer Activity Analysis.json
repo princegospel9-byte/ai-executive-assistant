@@ -2,12 +2,17 @@
   "name": "KB - Customer Activity Analysis",
   "nodes": [
     {
-      "parameters": { "inputSource": "passthrough" },
+      "parameters": {
+        "inputSource": "passthrough"
+      },
       "id": "c3c3d3e3-0003-4003-8003-000000000001",
       "name": "When Called (from Generate Message)",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [-2200, -150],
+      "position": [
+        -2200,
+        -150
+      ],
       "notes": "Expected input: { school_id }. Called two ways - as a sub-workflow right after School CRM - Generate Message inserts a message (automatic trigger on real customer activity), and via the webhook below (manual 'Refresh AI summary' button on the school detail page)."
     },
     {
@@ -21,28 +26,43 @@
       "name": "Called From Dashboard (Refresh Summary)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2200, 150],
-      "notes": "Requires header x-automation-secret. Body: { school_id }."
+      "position": [
+        -2200,
+        150
+      ],
+      "notes": "Requires header x-automation-secret. Body: { school_id }.",
+      "webhookId": "81bec0e4-d819-4eba-a1f0-a4315d05b190"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || item;\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\n// Sub-workflow calls (no headers) are always trusted - only webhook calls need the secret check.\nconst authOk = item.headers ? providedSecret === $vars.N8N_WEBHOOK_SECRET : true;\nreturn [{ json: { school_id: payload.school_id, auth_ok: authOk, from_webhook: !!item.headers } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || item;\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\n// Sub-workflow calls (no headers) are always trusted - only webhook calls need the secret check.\nconst authOk = item.headers ? providedSecret === $env.N8N_WEBHOOK_SECRET : true;\nreturn [{ json: { school_id: payload.school_id, auth_ok: authOk, from_webhook: !!item.headers } }];"
       },
       "id": "c3c3d3e3-0003-4003-8003-000000000003",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-2000, 0]
+      "position": [
+        -2000,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -53,36 +73,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "c3c3d3e3-0003-4003-8003-000000000005",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1600, 250]
+      "position": [
+        -1600,
+        250
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.school_id }}" },
-            { "name": "select", "value": "*,school_interactions(interaction_type,notes,next_action,occurred_at),generated_messages(message_type,channel,content,created_at)" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.school_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*,school_interactions(interaction_type,notes,next_action,occurred_at),generated_messages(message_type,channel,content,created_at)"
+            }
           ]
         },
         "options": {}
@@ -91,27 +131,43 @@
       "name": "Fetch School With History",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, -150],
+      "position": [
+        -1600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/customer_memory",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/customer_memory",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "school_id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.school_id }}" },
-            { "name": "select", "value": "summary" }
+            {
+              "name": "school_id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.school_id }}"
+            },
+            {
+              "name": "select",
+              "value": "summary"
+            }
           ]
         },
         "options": {}
@@ -120,10 +176,14 @@
       "name": "Fetch Existing Memory",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -133,14 +193,17 @@
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1200, -150]
+      "position": [
+        -1200,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -150,7 +213,10 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-1000, -150]
+      "position": [
+        -1000,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -160,19 +226,34 @@
       "name": "Prepare Memory Upsert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/customer_memory?on_conflict=user_id,school_id",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/customer_memory?on_conflict=user_id,school_id",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -184,10 +265,14 @@
       "name": "Upsert Customer Memory",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-600, -150],
+      "position": [
+        -600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -197,17 +282,28 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $('Normalize & Check Auth').first().json.from_webhook }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -218,61 +314,167 @@
       "name": "Called Via Webhook?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-200, -150]
+      "position": [
+        -200,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "c3c3d3e3-0003-4003-8003-00000000000e",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     }
   ],
   "connections": {
     "When Called (from Generate Message)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Called From Dashboard (Refresh Summary)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Fetch School With History", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch School With History",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch School With History": {
-      "main": [[{ "node": "Fetch Existing Memory", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Existing Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Existing Memory": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Memory Upsert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Memory Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Memory Upsert": {
-      "main": [[{ "node": "Upsert Customer Memory", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Customer Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Customer Memory": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Called Via Webhook?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Called Via Webhook?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Called Via Webhook?": {
       "main": [
-        [{ "node": "Respond 200", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     }

@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Orchestrate)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-3400, 0],
-      "notes": "Requires header x-automation-secret. Body: { request }. The Executive Assistant's delegation entry point - see documentation/agent-system-module.md."
+      "position": [
+        -3400,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { request }. The Executive Assistant's delegation entry point - see documentation/agent-system-module.md.",
+      "webhookId": "a0a7d4d5-df6a-4382-8e1f-eb16cb28b41a"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { request: payload.request || '', auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { request: payload.request || '', auth_ok: authOk } }];"
       },
       "id": "f5f5a5b5-0005-4005-8005-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-3200, 0]
+      "position": [
+        -3200,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-3000, 0]
+      "position": [
+        -3000,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "f5f5a5b5-0005-4005-8005-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-2800, 250]
+      "position": [
+        -2800,
+        250
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -82,27 +117,43 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2800, -150],
+      "position": [
+        -2800,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agents",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/agents",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "eq.active" },
-            { "name": "select", "value": "id,agent_key,name,description,capabilities" }
+            {
+              "name": "status",
+              "value": "eq.active"
+            },
+            {
+              "name": "select",
+              "value": "id,agent_key,name,description,capabilities"
+            }
           ]
         },
         "options": {}
@@ -111,29 +162,51 @@
       "name": "Fetch Active Agents",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2600, -150],
+      "position": [
+        -2600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "neq.lost_lead" },
-            { "name": "order", "value": "updated_at.desc" },
-            { "name": "limit", "value": "30" },
-            { "name": "select", "value": "school_name,status,interest_level,next_follow_up_date" }
+            {
+              "name": "status",
+              "value": "neq.lost_lead"
+            },
+            {
+              "name": "order",
+              "value": "updated_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "30"
+            },
+            {
+              "name": "select",
+              "value": "school_name,status,interest_level,next_follow_up_date"
+            }
           ]
         },
         "options": {}
@@ -142,25 +215,40 @@
       "name": "Fetch Active Pipeline",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2400, -150],
+      "position": [
+        -2400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/business_memory",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/business_memory",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "select", "value": "category,key,value" }]
+          "parameters": [
+            {
+              "name": "select",
+              "value": "category,key,value"
+            }
+          ]
         },
         "options": {}
       },
@@ -168,29 +256,51 @@
       "name": "Fetch Business Memory",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2200, -150],
+      "position": [
+        -2200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/finance_entries",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/finance_entries",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "occurred_on", "value": "=gte.{{ new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0] }}" },
-            { "name": "order", "value": "occurred_on.desc" },
-            { "name": "limit", "value": "50" },
-            { "name": "select", "value": "entry_type,category,amount,currency,description,occurred_on" }
+            {
+              "name": "occurred_on",
+              "value": "=gte.{{ new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0] }}"
+            },
+            {
+              "name": "order",
+              "value": "occurred_on.desc"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            },
+            {
+              "name": "select",
+              "value": "entry_type,category,amount,currency,description,occurred_on"
+            }
           ]
         },
         "options": {}
@@ -199,29 +309,51 @@
       "name": "Fetch Recent Finance Entries",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2000, -150],
+      "position": [
+        -2000,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(pending,in_progress)" },
-            { "name": "order", "value": "priority.desc" },
-            { "name": "limit", "value": "20" },
-            { "name": "select", "value": "title,priority,category,due_date" }
+            {
+              "name": "status",
+              "value": "in.(pending,in_progress)"
+            },
+            {
+              "name": "order",
+              "value": "priority.desc"
+            },
+            {
+              "name": "limit",
+              "value": "20"
+            },
+            {
+              "name": "select",
+              "value": "title,priority,category,due_date"
+            }
           ]
         },
         "options": {}
@@ -230,28 +362,47 @@
       "name": "Fetch Pending Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1800, -150],
+      "position": [
+        -1800,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/automation_runs",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/automation_runs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "order", "value": "started_at.desc" },
-            { "name": "limit", "value": "30" },
-            { "name": "select", "value": "workflow_name,status,duration_ms,error_message" }
+            {
+              "name": "order",
+              "value": "started_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "30"
+            },
+            {
+              "name": "select",
+              "value": "workflow_name,status,duration_ms,error_message"
+            }
           ]
         },
         "options": {}
@@ -260,28 +411,47 @@
       "name": "Fetch Recent Automation Runs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, -150],
+      "position": [
+        -1600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(open,awaiting_approval)" },
-            { "name": "limit", "value": "20" },
-            { "name": "select", "value": "subject,priority,status" }
+            {
+              "name": "status",
+              "value": "in.(open,awaiting_approval)"
+            },
+            {
+              "name": "limit",
+              "value": "20"
+            },
+            {
+              "name": "select",
+              "value": "subject,priority,status"
+            }
           ]
         },
         "options": {}
@@ -290,38 +460,48 @@
       "name": "Fetch Open Support Tickets",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const agents = $('Fetch Active Agents').first().json || [];\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\nconst memory = $('Fetch Business Memory').first().json || [];\nconst finance = $('Fetch Recent Finance Entries').first().json || [];\nconst tasks = $('Fetch Pending Tasks').first().json || [];\nconst runs = $('Fetch Recent Automation Runs').first().json || [];\nconst tickets = $('Fetch Open Support Tickets').first().json || [];\n\nconst availableAgentsText = agents.map(a => `- ${a.agent_key}: ${a.description}`).join('\\n');\n\nconst pipelineText = pipeline.length\n  ? pipeline.map(s => `- ${s.school_name}: ${s.status}, interest ${s.interest_level}${s.next_follow_up_date ? ', next follow-up ' + s.next_follow_up_date : ''}`).join('\\n')\n  : 'No active pipeline.';\n\nconst memoryText = memory.length\n  ? memory.map(m => `- [${m.category}] ${m.key}: ${m.value}`).join('\\n')\n  : 'No business memory saved yet.';\n\nconst financeText = finance.length\n  ? finance.map(f => `- ${f.occurred_on} ${f.entry_type} (${f.category}): ${f.currency} ${f.amount}${f.description ? ' - ' + f.description : ''}`).join('\\n')\n  : 'No finance entries logged in the last 60 days.';\n\nconst tasksText = tasks.length\n  ? tasks.map(t => `- ${t.title} (${t.priority}${t.category ? ', ' + t.category : ''}${t.due_date ? ', due ' + t.due_date : ''})`).join('\\n')\n  : 'No pending tasks.';\n\nconst runsText = runs.length\n  ? runs.map(r => `- ${r.workflow_name}: ${r.status}${r.duration_ms ? ', ' + r.duration_ms + 'ms' : ''}${r.error_message ? ', error: ' + r.error_message : ''}`).join('\\n')\n  : 'No recent automation runs logged.';\n\nconst ticketsText = tickets.length\n  ? tickets.map(t => `- ${t.subject} (${t.priority}, ${t.status})`).join('\\n')\n  : 'No open support tickets.';\n\nreturn [{\n  json: {\n    agents,\n    available_agents_text: availableAgentsText,\n    context_by_key: {\n      sales: `Sales pipeline:\\n${pipelineText}`,\n      marketing: `Business context:\\n${memoryText}`,\n      finance: `Finance entries (last 60 days):\\n${financeText}`,\n      support: `Open support tickets:\\n${ticketsText}`,\n      research: `Business context:\\n${memoryText}`,\n      operations: `Pending tasks:\\n${tasksText}\\n\\nRecent automation runs:\\n${runsText}`\n    }\n  }\n}];"
+        "jsCode": "const agents = $('Fetch Active Agents').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst pipeline = $('Fetch Active Pipeline').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst memory = $('Fetch Business Memory').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst finance = $('Fetch Recent Finance Entries').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst tasks = $('Fetch Pending Tasks').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst runs = $('Fetch Recent Automation Runs').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst tickets = $('Fetch Open Support Tickets').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\n\nconst availableAgentsText = agents.map(a => `- ${a.agent_key}: ${a.description}`).join('\\n');\n\nconst pipelineText = pipeline.length\n  ? pipeline.map(s => `- ${s.school_name}: ${s.status}, interest ${s.interest_level}${s.next_follow_up_date ? ', next follow-up ' + s.next_follow_up_date : ''}`).join('\\n')\n  : 'No active pipeline.';\n\nconst memoryText = memory.length\n  ? memory.map(m => `- [${m.category}] ${m.key}: ${m.value}`).join('\\n')\n  : 'No business memory saved yet.';\n\nconst financeText = finance.length\n  ? finance.map(f => `- ${f.occurred_on} ${f.entry_type} (${f.category}): ${f.currency} ${f.amount}${f.description ? ' - ' + f.description : ''}`).join('\\n')\n  : 'No finance entries logged in the last 60 days.';\n\nconst tasksText = tasks.length\n  ? tasks.map(t => `- ${t.title} (${t.priority}${t.category ? ', ' + t.category : ''}${t.due_date ? ', due ' + t.due_date : ''})`).join('\\n')\n  : 'No pending tasks.';\n\nconst runsText = runs.length\n  ? runs.map(r => `- ${r.workflow_name}: ${r.status}${r.duration_ms ? ', ' + r.duration_ms + 'ms' : ''}${r.error_message ? ', error: ' + r.error_message : ''}`).join('\\n')\n  : 'No recent automation runs logged.';\n\nconst ticketsText = tickets.length\n  ? tickets.map(t => `- ${t.subject} (${t.priority}, ${t.status})`).join('\\n')\n  : 'No open support tickets.';\n\nreturn [{\n  json: {\n    agents,\n    available_agents_text: availableAgentsText,\n    context_by_key: {\n      sales: `Sales pipeline:\\n${pipelineText}`,\n      marketing: `Business context:\\n${memoryText}`,\n      finance: `Finance entries (last 60 days):\\n${financeText}`,\n      support: `Open support tickets:\\n${ticketsText}`,\n      research: `Business context:\\n${memoryText}`,\n      operations: `Pending tasks:\\n${tasksText}\\n\\nRecent automation runs:\\n${runsText}`\n    }\n  }\n}];"
       },
       "id": "f5f5a5b5-0005-4005-8005-00000000000d",
       "name": "Build Context Bundle",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "notes": "One prefetch of everything up front rather than a per-agent branch that fetches only what's needed - simpler workflow structure, acceptable trade-off for a low-frequency, user-initiated request."
     },
     {
       "parameters": {
-        "jsCode": "const bundle = $input.first().json;\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'agent_router',\n    user_id: userId,\n    feature: 'agent_router',\n    variables: {\n      available_agents: bundle.available_agents_text,\n      request\n    }\n  }\n}];"
+        "jsCode": "const bundle = $input.first().json;\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json.id;\nreturn [{\n  json: {\n    prompt_key: 'agent_router',\n    user_id: userId,\n    feature: 'agent_router',\n    variables: {\n      available_agents: bundle.available_agents_text,\n      request\n    }\n  }\n}];"
       },
       "id": "f5f5a5b5-0005-4005-8005-00000000000e",
       "name": "Build Router Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, -150]
+      "position": [
+        -1000,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -331,28 +511,41 @@
       "name": "Call AI - Process Request (Router)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const routerResult = $input.first().json;\nconst bundle = $('Build Context Bundle').first().json;\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json[0].id;\n\nconst selected = (routerResult.output?.agents || []).filter(a => bundle.agents.some(x => x.agent_key === a.agent_key));\nconst taskRows = selected.map(s => {\n  const agent = bundle.agents.find(x => x.agent_key === s.agent_key);\n  return { user_id: userId, agent_id: agent.id, parent_request: request, subtask: s.subtask, priority: 'medium', status: 'pending' };\n});\n\nreturn [{ json: { task_rows: taskRows, request, user_id: userId } }];"
+        "jsCode": "const routerResult = $input.first().json;\nconst bundle = $('Build Context Bundle').first().json;\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json.id;\n\nconst selected = (routerResult.output?.agents || []).filter(a => bundle.agents.some(x => x.agent_key === a.agent_key));\nconst taskRows = selected.map(s => {\n  const agent = bundle.agents.find(x => x.agent_key === s.agent_key);\n  return { user_id: userId, agent_id: agent.id, parent_request: request, subtask: s.subtask, priority: 'medium', status: 'pending' };\n});\n\nreturn [{ json: { task_rows: taskRows, request, user_id: userId } }];"
       },
       "id": "f5f5a5b5-0005-4005-8005-000000000010",
       "name": "Parse Router Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, -150],
+      "position": [
+        -600,
+        -150
+      ],
       "notes": "Filters out any agent_key the router might return that isn't a real active agent, rather than trusting the model's output blindly - a null agent_id would violate the agent_tasks FK."
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.task_rows.length }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ],
           "combinator": "and"
@@ -363,7 +556,10 @@
       "name": "Any Agents Selected?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -373,19 +569,34 @@
       "name": "Build No-Agent Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, 200]
+      "position": [
+        -200,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agent_tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/agent_tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -397,10 +608,14 @@
       "name": "Insert Agent Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, -300],
+      "position": [
+        -200,
+        -300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -410,15 +625,24 @@
       "name": "Normalize List",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -300]
+      "position": [
+        0,
+        -300
+      ]
     },
     {
-      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
       "id": "f5f5a5b5-0005-4005-8005-000000000015",
       "name": "Split Out Agent Tasks",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [200, -300]
+      "position": [
+        200,
+        -300
+      ]
     },
     {
       "parameters": {
@@ -428,14 +652,17 @@
       "name": "Build Per-Agent AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, -300]
+      "position": [
+        400,
+        -300
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -445,7 +672,10 @@
       "name": "Call AI - Process Request (Agent)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [600, -300]
+      "position": [
+        600,
+        -300
+      ]
     },
     {
       "parameters": {
@@ -455,19 +685,34 @@
       "name": "Prepare Output Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [800, -300]
+      "position": [
+        800,
+        -300
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agent_outputs",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/agent_outputs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -479,20 +724,32 @@
       "name": "Insert Agent Output",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1000, -300],
+      "position": [
+        1000,
+        -300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $('Prepare Output Insert').item.json.requires_approval }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -503,7 +760,10 @@
       "name": "Needs Approval?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [1200, -300]
+      "position": [
+        1200,
+        -300
+      ]
     },
     {
       "parameters": {
@@ -513,14 +773,17 @@
       "name": "Build Approval Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, -400]
+      "position": [
+        1400,
+        -400
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "cvI1POuIPIfKsO8J",
           "mode": "list",
           "cachedResultName": "Core - Request Approval"
         },
@@ -530,24 +793,44 @@
       "name": "Call Request Approval",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [1600, -400]
+      "position": [
+        1600,
+        -400
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agent_outputs",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/agent_outputs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $('Build Approval Request').item.json.agent_output_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Build Approval Request').item.json.agent_output_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -558,10 +841,14 @@
       "name": "Link Approval",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1800, -400],
+      "position": [
+        1800,
+        -400
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -571,7 +858,10 @@
       "name": "Collect For Combiner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, -300],
+      "position": [
+        2000,
+        -300
+      ],
       "notes": "Both the approval and no-approval branches converge here (safe fan-in - mutually exclusive per item, same pattern as School CRM - Generate Message's Is Email? branches)."
     },
     {
@@ -583,25 +873,31 @@
       "name": "Aggregate Agent Outputs",
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
-      "position": [2200, -300],
+      "position": [
+        2200,
+        -300
+      ],
       "notes": "Purpose-built for combining N per-agent items into one - avoids relying on Code node default-mode assumptions for this fan-in."
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.first().json.data || [];\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json[0].id;\n\nconst outputsText = items.map(i => `${i.agent_name}:\\n${i.output_text}`).join('\\n\\n');\n\nreturn [{\n  json: {\n    prompt_key: 'agent_combine_results',\n    user_id: userId,\n    feature: 'agent_combine_results',\n    variables: { request, agent_outputs: outputsText },\n    agent_runs: items.map(i => ({ agent_key: i.agent_key, agent_name: i.agent_name, output_text: i.output_text, requires_approval: i.requires_approval, approval_id: i.approval_id }))\n  }\n}];"
+        "jsCode": "const items = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0).data || [];\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json.id;\n\nconst outputsText = items.map(i => `${i.agent_name}:\\n${i.output_text}`).join('\\n\\n');\n\nreturn [{\n  json: {\n    prompt_key: 'agent_combine_results',\n    user_id: userId,\n    feature: 'agent_combine_results',\n    variables: { request, agent_outputs: outputsText },\n    agent_runs: items.map(i => ({ agent_key: i.agent_key, agent_name: i.agent_name, output_text: i.output_text, requires_approval: i.requires_approval, approval_id: i.approval_id }))\n  }\n}];"
       },
       "id": "f5f5a5b5-0005-4005-8005-000000000020",
       "name": "Build Combiner Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2400, -300]
+      "position": [
+        2400,
+        -300
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -611,7 +907,10 @@
       "name": "Call AI - Process Request (Combiner)",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [2600, -300]
+      "position": [
+        2600,
+        -300
+      ]
     },
     {
       "parameters": {
@@ -621,129 +920,413 @@
       "name": "Build Final Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2800, -300]
+      "position": [
+        2800,
+        -300
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "f5f5a5b5-0005-4005-8005-000000000023",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [3000, -150]
+      "position": [
+        3000,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Orchestrate)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Fetch Active Agents", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Active Agents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Active Agents": {
-      "main": [[{ "node": "Fetch Active Pipeline", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Active Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Active Pipeline": {
-      "main": [[{ "node": "Fetch Business Memory", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Business Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Business Memory": {
-      "main": [[{ "node": "Fetch Recent Finance Entries", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Finance Entries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Recent Finance Entries": {
-      "main": [[{ "node": "Fetch Pending Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Pending Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Pending Tasks": {
-      "main": [[{ "node": "Fetch Recent Automation Runs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Automation Runs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Recent Automation Runs": {
-      "main": [[{ "node": "Fetch Open Support Tickets", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Open Support Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Open Support Tickets": {
-      "main": [[{ "node": "Build Context Bundle", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Context Bundle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Context Bundle": {
-      "main": [[{ "node": "Build Router Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Router Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Router Request": {
-      "main": [[{ "node": "Call AI - Process Request (Router)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request (Router)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request (Router)": {
-      "main": [[{ "node": "Parse Router Output", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse Router Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Router Output": {
-      "main": [[{ "node": "Any Agents Selected?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Any Agents Selected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Any Agents Selected?": {
       "main": [
-        [{ "node": "Insert Agent Tasks", "type": "main", "index": 0 }],
-        [{ "node": "Build No-Agent Response", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Insert Agent Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build No-Agent Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Build No-Agent Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Agent Tasks": {
-      "main": [[{ "node": "Normalize List", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize List": {
-      "main": [[{ "node": "Split Out Agent Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Split Out Agent Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split Out Agent Tasks": {
-      "main": [[{ "node": "Build Per-Agent AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Per-Agent AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Per-Agent AI Request": {
-      "main": [[{ "node": "Call AI - Process Request (Agent)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request (Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request (Agent)": {
-      "main": [[{ "node": "Prepare Output Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Output Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Output Insert": {
-      "main": [[{ "node": "Insert Agent Output", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Agent Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Agent Output": {
-      "main": [[{ "node": "Needs Approval?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Needs Approval?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Needs Approval?": {
       "main": [
-        [{ "node": "Build Approval Request", "type": "main", "index": 0 }],
-        [{ "node": "Collect For Combiner", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Build Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Collect For Combiner",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Build Approval Request": {
-      "main": [[{ "node": "Call Request Approval", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call Request Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call Request Approval": {
-      "main": [[{ "node": "Link Approval", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Link Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Link Approval": {
-      "main": [[{ "node": "Collect For Combiner", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Collect For Combiner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Collect For Combiner": {
-      "main": [[{ "node": "Aggregate Agent Outputs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Aggregate Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Aggregate Agent Outputs": {
-      "main": [[{ "node": "Build Combiner Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Combiner Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Combiner Request": {
-      "main": [[{ "node": "Call AI - Process Request (Combiner)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request (Combiner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request (Combiner)": {
-      "main": [[{ "node": "Build Final Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Final Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

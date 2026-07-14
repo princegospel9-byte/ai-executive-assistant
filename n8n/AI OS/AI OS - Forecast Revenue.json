@@ -3,13 +3,26 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "months", "monthsInterval": 1, "triggerAtDayOfMonth": 1, "triggerAtHour": 6, "triggerAtMinute": 30 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "monthsInterval": 1,
+              "triggerAtDayOfMonth": 1,
+              "triggerAtHour": 6,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
       },
       "id": "p5p5e5f5-0015-4015-8015-000000000001",
       "name": "1st of Every Month at 6:30 AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-2000, -150],
+      "position": [
+        -2000,
+        -150
+      ],
       "notes": "Dual-trigger with the webhook below - only one fires per execution."
     },
     {
@@ -23,28 +36,43 @@
       "name": "Called From Dashboard (Forecast)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2000, 150],
-      "notes": "Requires header x-automation-secret. No body needed - always forecasts revenue for next month from business_metrics history."
+      "position": [
+        -2000,
+        150
+      ],
+      "notes": "Requires header x-automation-secret. No body needed - always forecasts revenue for next month from business_metrics history.",
+      "webhookId": "80c80ec9-d028-420c-8b81-9212bd6383fd"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = item.headers ? providedSecret === $vars.N8N_WEBHOOK_SECRET : true;\nreturn [{ json: { auth_ok: authOk, from_webhook: !!item.headers } }];"
+        "jsCode": "const item = $input.first().json;\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = item.headers ? providedSecret === $env.N8N_WEBHOOK_SECRET : true;\nreturn [{ json: { auth_ok: authOk, from_webhook: !!item.headers } }];"
       },
       "id": "p5p5e5f5-0015-4015-8015-000000000003",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -55,36 +83,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "p5p5e5f5-0015-4015-8015-000000000005",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1400, 250]
+      "position": [
+        -1400,
+        250
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -93,28 +141,47 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/business_metrics",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/business_metrics",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "order", "value": "metric_date.desc" },
-            { "name": "limit", "value": "90" },
-            { "name": "select", "value": "metric_date,total_customers,active_leads,income_total,expense_total" }
+            {
+              "name": "order",
+              "value": "metric_date.desc"
+            },
+            {
+              "name": "limit",
+              "value": "90"
+            },
+            {
+              "name": "select",
+              "value": "metric_date,total_customers,active_leads,income_total,expense_total"
+            }
           ]
         },
         "options": {}
@@ -123,27 +190,34 @@
       "name": "Fetch Metrics History",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const history = $input.first().json || [];\nconst userId = $('Get Primary User').first().json[0].id;\nconst nextMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);\nconst periodLabel = nextMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });\n\nconst historyText = history.length\n  ? history.map(m => `- ${m.metric_date}: income ${m.income_total}, expenses ${m.expense_total}, customers ${m.total_customers}, active leads ${m.active_leads}`).join('\\n')\n  : 'No historical snapshots yet.';\n\nreturn [{\n  json: {\n    prompt_key: 'revenue_forecast',\n    user_id: userId,\n    feature: 'revenue_forecast',\n    snapshot_count: history.length,\n    period_label: periodLabel,\n    variables: {\n      prediction_type: 'revenue',\n      period_label: periodLabel,\n      metrics_history: historyText\n    }\n  }\n}];"
+        "jsCode": "const history = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst userId = $('Get Primary User').first().json.id;\nconst nextMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);\nconst periodLabel = nextMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });\n\nconst historyText = history.length\n  ? history.map(m => `- ${m.metric_date}: income ${m.income_total}, expenses ${m.expense_total}, customers ${m.total_customers}, active leads ${m.active_leads}`).join('\\n')\n  : 'No historical snapshots yet.';\n\nreturn [{\n  json: {\n    prompt_key: 'revenue_forecast',\n    user_id: userId,\n    feature: 'revenue_forecast',\n    snapshot_count: history.length,\n    period_label: periodLabel,\n    variables: {\n      prediction_type: 'revenue',\n      period_label: periodLabel,\n      metrics_history: historyText\n    }\n  }\n}];"
       },
       "id": "p5p5e5f5-0015-4015-8015-000000000008",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, -150]
+      "position": [
+        -1000,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -153,7 +227,10 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -163,20 +240,35 @@
       "name": "Prepare Prediction Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, -150],
+      "position": [
+        -600,
+        -150
+      ],
       "notes": "Forces confidence to 'low' with fewer than 3 historical snapshots regardless of what the model says - a system-level floor on overconfidence when there's genuinely not enough data yet."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/business_predictions",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/business_predictions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -188,10 +280,14 @@
       "name": "Insert Prediction",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, -150],
+      "position": [
+        -400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -201,17 +297,28 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, -150]
+      "position": [
+        -200,
+        -150
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $('Normalize & Check Auth').first().json.from_webhook }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -222,61 +329,167 @@
       "name": "Called Via Webhook?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "p5p5e5f5-0015-4015-8015-00000000000e",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     }
   ],
   "connections": {
     "1st of Every Month at 6:30 AM": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Called From Dashboard (Forecast)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Fetch Metrics History", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Metrics History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Metrics History": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Prediction Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Prediction Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Prediction Insert": {
-      "main": [[{ "node": "Insert Prediction", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Prediction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Prediction": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Called Via Webhook?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Called Via Webhook?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Called Via Webhook?": {
       "main": [
-        [{ "node": "Respond 200", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     }

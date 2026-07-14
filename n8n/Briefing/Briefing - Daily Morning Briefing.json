@@ -3,31 +3,55 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "days", "daysInterval": 1, "triggerAtHour": 6, "triggerAtMinute": 0 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 6,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
       },
       "id": "cb20ecb9-951b-4baf-92ed-e1947fe8ab24",
       "name": "Every Day at 6:00 AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-2400, 0],
+      "position": [
+        -2400,
+        0
+      ],
       "notes": "Interpreted in this workflow's timezone setting (Africa/Accra) - set under Settings after import if it doesn't carry over from this JSON."
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -36,29 +60,51 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2200, 0],
+      "position": [
+        -2200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(pending,in_progress)" },
-            { "name": "due_date", "value": "=lte.{{ new Date(new Date().setHours(23,59,59,999)).toISOString() }}" },
-            { "name": "order", "value": "priority.desc,due_date.asc" },
-            { "name": "select", "value": "title,priority,due_date" }
+            {
+              "name": "status",
+              "value": "in.(pending,in_progress)"
+            },
+            {
+              "name": "due_date",
+              "value": "=lte.{{ new Date(new Date().setHours(23,59,59,999)).toISOString() }}"
+            },
+            {
+              "name": "order",
+              "value": "priority.desc,due_date.asc"
+            },
+            {
+              "name": "select",
+              "value": "title,priority,due_date"
+            }
           ]
         },
         "options": {}
@@ -67,31 +113,56 @@
       "name": "Fetch Today's Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2000, 0],
+      "position": [
+        -2000,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Due today or overdue, not yet done."
+      "notes": "Due today or overdue, not yet done.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/calendar_events",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/calendar_events",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "start_time", "value": "=gte.{{ new Date(new Date().setHours(0,0,0,0)).toISOString() }}" },
-            { "name": "start_time", "value": "=lte.{{ new Date(new Date().setHours(23,59,59,999)).toISOString() }}" },
-            { "name": "sync_status", "value": "eq.synced" },
-            { "name": "order", "value": "start_time.asc" },
-            { "name": "select", "value": "title,start_time,location" }
+            {
+              "name": "start_time",
+              "value": "=gte.{{ new Date(new Date().setHours(0,0,0,0)).toISOString() }}"
+            },
+            {
+              "name": "start_time",
+              "value": "=lte.{{ new Date(new Date().setHours(23,59,59,999)).toISOString() }}"
+            },
+            {
+              "name": "sync_status",
+              "value": "eq.synced"
+            },
+            {
+              "name": "order",
+              "value": "start_time.asc"
+            },
+            {
+              "name": "select",
+              "value": "title,start_time,location"
+            }
           ]
         },
         "options": {}
@@ -100,30 +171,55 @@
       "name": "Fetch Today's Events",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1800, 0],
+      "position": [
+        -1800,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/emails",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/emails",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "from_address,from_name,subject,email_analysis!inner(priority)" },
-            { "name": "email_analysis.priority", "value": "in.(critical,high)" },
-            { "name": "is_read", "value": "eq.false" },
-            { "name": "order", "value": "received_at.desc" },
-            { "name": "limit", "value": "10" }
+            {
+              "name": "select",
+              "value": "from_address,from_name,subject,email_analysis!inner(priority)"
+            },
+            {
+              "name": "email_analysis.priority",
+              "value": "in.(critical,high)"
+            },
+            {
+              "name": "is_read",
+              "value": "eq.false"
+            },
+            {
+              "name": "order",
+              "value": "received_at.desc"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            }
           ]
         },
         "options": {}
@@ -132,28 +228,47 @@
       "name": "Fetch Important Emails",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, 0],
+      "position": [
+        -1600,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "eq.completed" },
-            { "name": "updated_at", "value": "=gte.{{ new Date(Date.now() - 7 * 86400000).toISOString() }}" },
-            { "name": "select", "value": "id" }
+            {
+              "name": "status",
+              "value": "eq.completed"
+            },
+            {
+              "name": "updated_at",
+              "value": "=gte.{{ new Date(Date.now() - 7 * 86400000).toISOString() }}"
+            },
+            {
+              "name": "select",
+              "value": "id"
+            }
           ]
         },
         "options": {}
@@ -162,27 +277,43 @@
       "name": "Fetch Completed This Week",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, 0],
+      "position": [
+        -1400,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(pending,in_progress)" },
-            { "name": "select", "value": "id" }
+            {
+              "name": "status",
+              "value": "in.(pending,in_progress)"
+            },
+            {
+              "name": "select",
+              "value": "id"
+            }
           ]
         },
         "options": {}
@@ -191,27 +322,43 @@
       "name": "Fetch Pending Count",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, 0],
+      "position": [
+        -1200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(new_lead,contacted,demo_scheduled,demo_completed,negotiating,trial_started)" },
-            { "name": "select", "value": "school_name,status,next_follow_up_date,interest_level" }
+            {
+              "name": "status",
+              "value": "in.(new_lead,contacted,demo_scheduled,demo_completed,negotiating,trial_started)"
+            },
+            {
+              "name": "select",
+              "value": "school_name,status,next_follow_up_date,interest_level"
+            }
           ]
         },
         "options": {}
@@ -220,28 +367,44 @@
       "name": "Fetch Active Pipeline",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1100, 0],
+      "position": [
+        -1100,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Added in Phase 5 - feeds the sales-priorities and pipeline-snapshot sections folded into this briefing instead of running a second separate sales briefing."
+      "notes": "Added in Phase 5 - feeds the sales-priorities and pipeline-snapshot sections folded into this briefing instead of running a second separate sales briefing.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/agent_outputs",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/agent_outputs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "created_at", "value": "=gte.{{ new Date(Date.now() - 24 * 3600000).toISOString() }}" },
-            { "name": "select", "value": "status,agent_tasks(agents(name))" }
+            {
+              "name": "created_at",
+              "value": "=gte.{{ new Date(Date.now() - 24 * 3600000).toISOString() }}"
+            },
+            {
+              "name": "select",
+              "value": "status,agent_tasks(agents(name))"
+            }
           ]
         },
         "options": {}
@@ -250,28 +413,44 @@
       "name": "Fetch Recent Agent Outputs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1050, 0],
+      "position": [
+        -1050,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Phase 7 addition - feeds the agent-team summary section (daily_briefing v3) instead of a second separate 'Daily Agent Briefing' workflow."
+      "notes": "Phase 7 addition - feeds the agent-team summary section (daily_briefing v3) instead of a second separate 'Daily Agent Briefing' workflow.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(open,awaiting_approval)" },
-            { "name": "select", "value": "id" }
+            {
+              "name": "status",
+              "value": "in.(open,awaiting_approval)"
+            },
+            {
+              "name": "select",
+              "value": "id"
+            }
           ]
         },
         "options": {}
@@ -280,37 +459,47 @@
       "name": "Fetch Open Tickets Count",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1025, 0],
+      "position": [
+        -1025,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const tasksDue = $('Fetch Today\\'s Tasks').first().json;\nconst events = $('Fetch Today\\'s Events').first().json;\nconst emails = $('Fetch Important Emails').first().json;\nconst completed = $('Fetch Completed This Week').first().json;\nconst pending = $('Fetch Pending Count').first().json;\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\nconst agentOutputs = $('Fetch Recent Agent Outputs').first().json || [];\nconst openTickets = $('Fetch Open Tickets Count').first().json || [];\n\nconst tasksDueText = (tasksDue || []).length\n  ? tasksDue.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleString() : ''})`).join('\\n')\n  : 'None';\n\nconst calendarText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${e.title}${e.location ? ' at ' + e.location : ''}`).join('\\n')\n  : 'No meetings scheduled';\n\nconst emailsText = (emails || []).length\n  ? emails.map(e => `- From ${e.from_name || e.from_address}: ${e.subject}`).join('\\n')\n  : 'No urgent unread emails';\n\nconst today = new Date().toISOString().split('T')[0];\nconst dueToday = pipeline.filter(s => s.next_follow_up_date && s.next_follow_up_date <= today);\nconst salesPrioritiesText = dueToday.length\n  ? dueToday.map(s => `- Follow up with ${s.school_name} (${s.status}, ${s.interest_level} interest)`).join('\\n')\n  : 'No follow-ups due today';\n\nconst pipelineCounts = {};\nfor (const s of pipeline) pipelineCounts[s.status] = (pipelineCounts[s.status] || 0) + 1;\nconst pipelineSummaryText = Object.keys(pipelineCounts).length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${count} ${status.replace('_', ' ')}`).join('\\n')\n  : 'No active leads yet';\n\nconst agentCounts = {};\nfor (const o of agentOutputs) {\n  const name = o.agent_tasks?.agents?.name || 'Unknown agent';\n  agentCounts[name] = agentCounts[name] || { pending: 0, info: 0 };\n  if (o.status === 'pending_approval') agentCounts[name].pending++;\n  else agentCounts[name].info++;\n}\nconst agentLines = Object.entries(agentCounts).map(([name, c]) => {\n  const parts = [];\n  if (c.pending) parts.push(`${c.pending} awaiting your approval`);\n  if (c.info) parts.push(`${c.info} recommendation(s)`);\n  return `- ${name}: ${parts.join(', ')}`;\n});\nif ((openTickets || []).length) agentLines.push(`- Support: ${openTickets.length} open ticket(s)`);\nconst agentSummaryText = agentLines.length ? agentLines.join('\\n') : 'No agent activity in the last 24 hours.';\n\nreturn [{\n  json: {\n    tasks_due: tasksDueText,\n    calendar_today: calendarText,\n    emails_summary: emailsText,\n    follow_ups_due: 'Not yet tracked - CRM module not built yet',\n    sales_priorities: salesPrioritiesText,\n    pipeline_summary: pipelineSummaryText,\n    agent_summary: agentSummaryText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    pipeline_counts: pipelineCounts\n  }\n}];"
+        "jsCode": "const tasksDue = $('Fetch Today\\'s Tasks').first().json;\nconst events = $('Fetch Today\\'s Events').first().json;\nconst emails = $('Fetch Important Emails').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0);\nconst completed = $('Fetch Completed This Week').first().json;\nconst pending = $('Fetch Pending Count').first().json;\nconst pipeline = $('Fetch Active Pipeline').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst agentOutputs = $('Fetch Recent Agent Outputs').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst openTickets = $('Fetch Open Tickets Count').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\n\nconst tasksDueText = (tasksDue || []).length\n  ? tasksDue.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + new Date(t.due_date).toLocaleString() : ''})`).join('\\n')\n  : 'None';\n\nconst calendarText = (events || []).length\n  ? events.map(e => `- ${new Date(e.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${e.title}${e.location ? ' at ' + e.location : ''}`).join('\\n')\n  : 'No meetings scheduled';\n\nconst emailsText = (emails || []).length\n  ? emails.map(e => `- From ${e.from_name || e.from_address}: ${e.subject}`).join('\\n')\n  : 'No urgent unread emails';\n\nconst today = new Date().toISOString().split('T')[0];\nconst dueToday = pipeline.filter(s => s.next_follow_up_date && s.next_follow_up_date <= today);\nconst salesPrioritiesText = dueToday.length\n  ? dueToday.map(s => `- Follow up with ${s.school_name} (${s.status}, ${s.interest_level} interest)`).join('\\n')\n  : 'No follow-ups due today';\n\nconst pipelineCounts = {};\nfor (const s of pipeline) pipelineCounts[s.status] = (pipelineCounts[s.status] || 0) + 1;\nconst pipelineSummaryText = Object.keys(pipelineCounts).length\n  ? Object.entries(pipelineCounts).map(([status, count]) => `- ${count} ${status.replace('_', ' ')}`).join('\\n')\n  : 'No active leads yet';\n\nconst agentCounts = {};\nfor (const o of agentOutputs) {\n  const name = o.agent_tasks?.agents?.name || 'Unknown agent';\n  agentCounts[name] = agentCounts[name] || { pending: 0, info: 0 };\n  if (o.status === 'pending_approval') agentCounts[name].pending++;\n  else agentCounts[name].info++;\n}\nconst agentLines = Object.entries(agentCounts).map(([name, c]) => {\n  const parts = [];\n  if (c.pending) parts.push(`${c.pending} awaiting your approval`);\n  if (c.info) parts.push(`${c.info} recommendation(s)`);\n  return `- ${name}: ${parts.join(', ')}`;\n});\nif ((openTickets || []).length) agentLines.push(`- Support: ${openTickets.length} open ticket(s)`);\nconst agentSummaryText = agentLines.length ? agentLines.join('\\n') : 'No agent activity in the last 24 hours.';\n\nreturn [{\n  json: {\n    tasks_due: tasksDueText,\n    calendar_today: calendarText,\n    emails_summary: emailsText,\n    follow_ups_due: 'Not yet tracked - CRM module not built yet',\n    sales_priorities: salesPrioritiesText,\n    pipeline_summary: pipelineSummaryText,\n    agent_summary: agentSummaryText,\n    completed_count: (completed || []).length,\n    pending_count: (pending || []).length,\n    pipeline_counts: pipelineCounts\n  }\n}];"
       },
       "id": "7a1d706f-7aa9-4a5f-9b95-7066f2afcc41",
       "name": "Build Briefing Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, 0]
+      "position": [
+        -1000,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nreturn [{\n  json: {\n    prompt_key: 'daily_briefing',\n    user_id: userId,\n    feature: 'daily_briefing',\n    variables: {\n      emails_summary: input.emails_summary,\n      calendar_today: input.calendar_today,\n      tasks_due: input.tasks_due,\n      follow_ups_due: input.follow_ups_due,\n      sales_priorities: input.sales_priorities,\n      pipeline_summary: input.pipeline_summary,\n      agent_summary: input.agent_summary\n    }\n  }\n}];"
+        "jsCode": "const input = $input.first().json;\nconst userId = $('Get Primary User').first().json.id;\nreturn [{\n  json: {\n    prompt_key: 'daily_briefing',\n    user_id: userId,\n    feature: 'daily_briefing',\n    variables: {\n      emails_summary: input.emails_summary,\n      calendar_today: input.calendar_today,\n      tasks_due: input.tasks_due,\n      follow_ups_due: input.follow_ups_due,\n      sales_priorities: input.sales_priorities,\n      pipeline_summary: input.pipeline_summary,\n      agent_summary: input.agent_summary\n    }\n  }\n}];"
       },
       "id": "9d157b73-eede-4737-9526-1fa74d40fcae",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, 0]
+      "position": [
+        -800,
+        0
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -320,29 +509,47 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const aiResult = $input.first().json;\nconst stats = $('Build Briefing Input').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nconst today = new Date().toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    user_id: userId,\n    briefing_date: today,\n    content_text: aiResult.output,\n    content_json: { completed_count: stats.completed_count, pending_count: stats.pending_count, pipeline_counts: stats.pipeline_counts },\n    sent_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const aiResult = $input.first().json;\nconst stats = $('Build Briefing Input').first().json;\nconst userId = $('Get Primary User').first().json.id;\nconst today = new Date().toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    user_id: userId,\n    briefing_date: today,\n    content_text: aiResult.output,\n    content_json: { completed_count: stats.completed_count, pending_count: stats.pending_count, pipeline_counts: stats.pipeline_counts },\n    sent_at: new Date().toISOString()\n  }\n}];"
       },
       "id": "bf6d3842-d2b2-4aad-b0f0-e6292ad765f2",
       "name": "Prepare Briefing Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, 0]
+      "position": [
+        -400,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/daily_briefings?on_conflict=user_id,briefing_date",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/daily_briefings?on_conflict=user_id,briefing_date",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -354,10 +561,14 @@
       "name": "Upsert Daily Briefing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, 0],
+      "position": [
+        -200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -367,14 +578,17 @@
       "name": "Build Notification Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "YEHmYg50iosaKxi5",
           "mode": "list",
           "cachedResultName": "Notifications - Send Notification"
         },
@@ -384,57 +598,188 @@
       "name": "Notify",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [200, 0]
+      "position": [
+        200,
+        0
+      ]
     }
   ],
   "connections": {
     "Every Day at 6:00 AM": {
-      "main": [[{ "node": "Get Primary User", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Fetch Today's Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Today's Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Today's Tasks": {
-      "main": [[{ "node": "Fetch Today's Events", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Today's Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Today's Events": {
-      "main": [[{ "node": "Fetch Important Emails", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Important Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Important Emails": {
-      "main": [[{ "node": "Fetch Completed This Week", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Completed This Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Completed This Week": {
-      "main": [[{ "node": "Fetch Pending Count", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Pending Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Pending Count": {
-      "main": [[{ "node": "Fetch Active Pipeline", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Active Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Active Pipeline": {
-      "main": [[{ "node": "Fetch Recent Agent Outputs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Recent Agent Outputs": {
-      "main": [[{ "node": "Fetch Open Tickets Count", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Open Tickets Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Open Tickets Count": {
-      "main": [[{ "node": "Build Briefing Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Briefing Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Briefing Input": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Briefing Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Briefing Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Briefing Insert": {
-      "main": [[{ "node": "Upsert Daily Briefing", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Daily Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Daily Briefing": {
-      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Notification Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Notification Payload": {
-      "main": [[{ "node": "Notify", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

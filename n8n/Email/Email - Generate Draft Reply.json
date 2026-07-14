@@ -2,12 +2,17 @@
   "name": "Email - Generate Draft Reply",
   "nodes": [
     {
-      "parameters": { "inputSource": "passthrough" },
+      "parameters": {
+        "inputSource": "passthrough"
+      },
       "id": "9c64cd68-25e3-4a4f-a7a4-65d21ee63d63",
       "name": "Called Internally",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
-      "position": [-2000, -150],
+      "position": [
+        -2000,
+        -150
+      ],
       "notes": "Used by Email - Analyze Email right after analysis. Expected input: { email_id, tone }"
     },
     {
@@ -21,28 +26,43 @@
       "name": "Called From Dashboard (Regenerate)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2000, 150],
-      "notes": "Used by the dashboard's Regenerate button. Requires header x-automation-secret matching the N8N_WEBHOOK_SECRET variable. Body: { email_id, tone }"
+      "position": [
+        -2000,
+        150
+      ],
+      "notes": "Used by the dashboard's Regenerate button. Requires header x-automation-secret matching the N8N_WEBHOOK_SECRET variable. Body: { email_id, tone }",
+      "webhookId": "441a4f86-6e7d-4ee2-8d87-0cec3d404e8d"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst isWebhook = item.headers !== undefined && item.body !== undefined;\nconst payload = isWebhook ? item.body : item;\nconst providedSecret = isWebhook ? (item.headers['x-automation-secret'] || item.headers['X-Automation-Secret']) : null;\nconst authOk = !isWebhook || providedSecret === $vars.N8N_WEBHOOK_SECRET;\n\nreturn [{\n  json: {\n    email_id: payload.email_id,\n    tone: payload.tone || 'professional',\n    is_webhook: isWebhook,\n    auth_ok: authOk\n  }\n}];"
+        "jsCode": "const item = $input.first().json;\nconst isWebhook = item.headers !== undefined && item.body !== undefined;\nconst payload = isWebhook ? item.body : item;\nconst providedSecret = isWebhook ? (item.headers['x-automation-secret'] || item.headers['X-Automation-Secret']) : null;\nconst authOk = !isWebhook || providedSecret === $env.N8N_WEBHOOK_SECRET;\n\nreturn [{\n  json: {\n    email_id: payload.email_id,\n    tone: payload.tone || 'professional',\n    is_webhook: isWebhook,\n    auth_ok: authOk\n  }\n}];"
       },
       "id": "d4ab145d-7fb0-4153-99d1-a189a5b0cfb6",
       "name": "Normalize Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -53,38 +73,64 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "339e9679-1ee9-4403-99b2-c18e83bcd203",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1400, 150]
+      "position": [
+        -1400,
+        150
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/draft_replies",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/draft_replies",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "email_id", "value": "=eq.{{ $json.email_id }}" },
-            { "name": "status", "value": "eq.pending" }
+            {
+              "name": "email_id",
+              "value": "=eq.{{ $json.email_id }}"
+            },
+            {
+              "name": "status",
+              "value": "eq.pending"
+            }
           ]
         },
         "sendBody": true,
@@ -96,31 +142,56 @@
       "name": "Supersede Old Draft",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Harmless no-op if there's no pending draft for this email - only matters when regenerating."
+      "notes": "Harmless no-op if there's no pending draft for this email - only matters when regenerating.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/approvals",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "action_type", "value": "eq.send_email" },
-            { "name": "related_record_id", "value": "=eq.{{ $('Normalize Input').first().json.email_id }}" },
-            { "name": "status", "value": "eq.pending" }
+            {
+              "name": "action_type",
+              "value": "eq.send_email"
+            },
+            {
+              "name": "related_record_id",
+              "value": "=eq.{{ $('Normalize Input').first().json.email_id }}"
+            },
+            {
+              "name": "status",
+              "value": "eq.pending"
+            }
           ]
         },
         "sendBody": true,
@@ -132,27 +203,43 @@
       "name": "Supersede Old Approval",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/emails",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/emails",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize Input').first().json.email_id }}" },
-            { "name": "select", "value": "*,email_analysis(*)" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize Input').first().json.email_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*,email_analysis(*)"
+            }
           ]
         },
         "options": {}
@@ -161,10 +248,14 @@
       "name": "Fetch Email With Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, -150],
+      "position": [
+        -1000,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -174,7 +265,10 @@
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, -150],
+      "position": [
+        -800,
+        -150
+      ],
       "notes": "Uses Sonnet 5 rather than AI - Process Request's Opus default - drafting is exactly the kind of per-feature override that workflow was built to allow."
     },
     {
@@ -182,7 +276,7 @@
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -192,7 +286,10 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-600, -150]
+      "position": [
+        -600,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -202,19 +299,34 @@
       "name": "Prepare Draft Insert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/draft_replies",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/draft_replies",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -226,10 +338,14 @@
       "name": "Insert Draft Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, -150],
+      "position": [
+        -200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -239,14 +355,17 @@
       "name": "Build Approval Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "cvI1POuIPIfKsO8J",
           "mode": "list",
           "cachedResultName": "Core - Request Approval"
         },
@@ -256,25 +375,43 @@
       "name": "Call Request Approval",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/draft_replies",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/draft_replies",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Build Approval Request').first().json.draft_reply_id }}" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Build Approval Request').first().json.draft_reply_id }}"
+            }
           ]
         },
         "sendBody": true,
@@ -286,10 +423,14 @@
       "name": "Link Approval To Draft",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [400, -150],
+      "position": [
+        400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -299,70 +440,202 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, -150]
+      "position": [
+        600,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "ca28783f-26ce-4a08-8505-74a15faba486",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [800, -150],
+      "position": [
+        800,
+        -150
+      ],
       "notes": "When this workflow was triggered internally (not via webhook), this node is expected to be a harmless no-op and its output still becomes the workflow's return value for the caller."
     }
   ],
   "connections": {
     "Called Internally": {
-      "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Called From Dashboard (Regenerate)": {
-      "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize Input": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Supersede Old Draft", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Supersede Old Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Supersede Old Draft": {
-      "main": [[{ "node": "Supersede Old Approval", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Supersede Old Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Supersede Old Approval": {
-      "main": [[{ "node": "Fetch Email With Analysis", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Email With Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Email With Analysis": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Prepare Draft Insert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prepare Draft Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Draft Insert": {
-      "main": [[{ "node": "Insert Draft Reply", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Draft Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Draft Reply": {
-      "main": [[{ "node": "Build Approval Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Approval Request": {
-      "main": [[{ "node": "Call Request Approval", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call Request Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call Request Approval": {
-      "main": [[{ "node": "Link Approval To Draft", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Link Approval To Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Link Approval To Draft": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

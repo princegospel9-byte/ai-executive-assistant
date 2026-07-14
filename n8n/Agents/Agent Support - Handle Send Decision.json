@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Approve/Reject)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2000, 0],
-      "notes": "Requires header x-automation-secret. Body: { approval_id, decision: 'approved' | 'rejected' }. Mirrors School CRM - Handle Send Decision - fresh outbound email, not a reply."
+      "position": [
+        -2000,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { approval_id, decision: 'approved' | 'rejected' }. Mirrors School CRM - Handle Send Decision - fresh outbound email, not a reply.",
+      "webhookId": "d3102df8-5a65-4bf6-ac53-799544297b5e"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { approval_id: payload.approval_id, decision: payload.decision, auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { approval_id: payload.approval_id, decision: payload.decision, auth_ok: authOk } }];"
       },
       "id": "i8i8d8e8-0008-4008-8008-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "i8i8d8e8-0008-4008-8008-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1400, 200]
+      "position": [
+        -1400,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "approval_id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" },
-            { "name": "select", "value": "*" }
+            {
+              "name": "approval_id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
           ]
         },
         "options": {}
@@ -82,20 +117,31 @@
       "name": "Fetch Ticket By Approval",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $('Normalize & Check Auth').first().json.decision }}",
               "rightValue": "approved",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -106,7 +152,10 @@
       "name": "Is Approved?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1200, -150]
+      "position": [
+        -1200,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -116,7 +165,10 @@
       "name": "Build Raw Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, -300],
+      "position": [
+        -1000,
+        -300
+      ],
       "notes": "Fresh outbound email, not a reply - same as School CRM - Handle Send Decision, no threading headers even though the subject reads 'Re:'."
     },
     {
@@ -134,29 +186,55 @@
       "name": "Send Gmail Message",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, -300],
-      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } },
+      "position": [
+        -800,
+        -300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 5000,
-      "notes": "2 retries, not 3 - avoid risking a duplicate send to a real customer."
+      "notes": "2 retries, not 3 - avoid risking a duplicate send to a real customer.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $('Build Raw Email').first().json.ticket_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Build Raw Email').first().json.ticket_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -167,27 +245,48 @@
       "name": "Mark Ticket Resolved",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-600, -300],
+      "position": [
+        -600,
+        -300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/approvals",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -198,10 +297,14 @@
       "name": "Mark Approval Approved",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, -300],
+      "position": [
+        -400,
+        -300
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -211,14 +314,17 @@
       "name": "Build Notification Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, -300]
+      "position": [
+        -200,
+        -300
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "YEHmYg50iosaKxi5",
           "mode": "list",
           "cachedResultName": "Notifications - Send Notification"
         },
@@ -228,7 +334,10 @@
       "name": "Notify",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [0, -300]
+      "position": [
+        0,
+        -300
+      ]
     },
     {
       "parameters": {
@@ -238,25 +347,43 @@
       "name": "Build Success Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [200, -300]
+      "position": [
+        200,
+        -300
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/support_tickets",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/support_tickets",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "approval_id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" }
+            {
+              "name": "approval_id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}"
+            }
           ]
         },
         "sendBody": true,
@@ -268,28 +395,47 @@
       "name": "Reopen Ticket",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, 0],
+      "position": [
+        -1000,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/approvals",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/approvals",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.approval_id }}"
+            }
           ]
         },
         "sendBody": true,
@@ -301,10 +447,14 @@
       "name": "Mark Approval Rejected",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, 0],
+      "position": [
+        -800,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -314,72 +464,208 @@
       "name": "Build Rejected Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "i8i8d8e8-0008-4008-8008-000000000011",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [600, -150]
+      "position": [
+        600,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Approve/Reject)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Fetch Ticket By Approval", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch Ticket By Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch Ticket By Approval": {
-      "main": [[{ "node": "Is Approved?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Is Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is Approved?": {
       "main": [
-        [{ "node": "Build Raw Email", "type": "main", "index": 0 }],
-        [{ "node": "Reopen Ticket", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Build Raw Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reopen Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Build Raw Email": {
-      "main": [[{ "node": "Send Gmail Message", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Gmail Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Send Gmail Message": {
-      "main": [[{ "node": "Mark Ticket Resolved", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Mark Ticket Resolved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Mark Ticket Resolved": {
-      "main": [[{ "node": "Mark Approval Approved", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Mark Approval Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Mark Approval Approved": {
-      "main": [[{ "node": "Build Notification Payload", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Notification Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Notification Payload": {
-      "main": [[{ "node": "Notify", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Notify": {
-      "main": [[{ "node": "Build Success Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Success Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Reopen Ticket": {
-      "main": [[{ "node": "Mark Approval Rejected", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Mark Approval Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Mark Approval Rejected": {
-      "main": [[{ "node": "Build Rejected Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Rejected Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Rejected Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Insights)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1400, 0],
-      "notes": "Requires header x-automation-secret. No body needed - analyzes the whole active pipeline."
+      "position": [
+        -1400,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. No body needed - analyzes the whole active pipeline.",
+      "webhookId": "d60cd8be-0a2e-474b-a827-33e19936de51"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { auth_ok: authOk } }];"
       },
       "id": "20cd6056-c40d-4c28-a806-fff3cf52fc3d",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1200, 0]
+      "position": [
+        -1200,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1000, 0]
+      "position": [
+        -1000,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "a46f8668-5b44-49de-9f7d-d8648b62eeff",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-800, 200]
+      "position": [
+        -800,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -82,27 +117,43 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, -150],
+      "position": [
+        -800,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "neq.lost_lead" },
-            { "name": "select", "value": "school_name,status,interest_level,next_follow_up_date,updated_at,current_software_system" }
+            {
+              "name": "status",
+              "value": "neq.lost_lead"
+            },
+            {
+              "name": "select",
+              "value": "school_name,status,interest_level,next_follow_up_date,updated_at,current_software_system"
+            }
           ]
         },
         "options": {}
@@ -111,27 +162,34 @@
       "name": "Fetch Active Schools",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-600, -150],
+      "position": [
+        -600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const schools = $input.first().json || [];\nconst userId = $('Get Primary User').first().json[0].id;\n\nconst enriched = schools.map(s => ({\n  school_name: s.school_name,\n  status: s.status,\n  interest_level: s.interest_level,\n  days_since_contact: s.updated_at ? Math.round((Date.now() - new Date(s.updated_at).getTime()) / 86400000) : null,\n  next_follow_up_date: s.next_follow_up_date,\n  current_software_system: s.current_software_system\n}));\n\nreturn [{\n  json: {\n    prompt_key: 'crm_insights',\n    user_id: userId,\n    feature: 'crm_insights',\n    variables: {\n      pipeline_data: JSON.stringify(enriched, null, 2)\n    }\n  }\n}];"
+        "jsCode": "const schools = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst userId = $('Get Primary User').first().json.id;\n\nconst enriched = schools.map(s => ({\n  school_name: s.school_name,\n  status: s.status,\n  interest_level: s.interest_level,\n  days_since_contact: s.updated_at ? Math.round((Date.now() - new Date(s.updated_at).getTime()) / 86400000) : null,\n  next_follow_up_date: s.next_follow_up_date,\n  current_software_system: s.current_software_system\n}));\n\nreturn [{\n  json: {\n    prompt_key: 'crm_insights',\n    user_id: userId,\n    feature: 'crm_insights',\n    variables: {\n      pipeline_data: JSON.stringify(enriched, null, 2)\n    }\n  }\n}];"
       },
       "id": "d7b23e68-dba6-4dcf-8c32-e5b6092c2a2e",
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, -150]
+      "position": [
+        -400,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -141,58 +199,137 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-200, -150]
+      "position": [
+        -200,
+        -150
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const aiResult = $input.first().json;\nconst schools = $('Fetch Active Schools').first().json || [];\nconst counts = {};\nfor (const s of schools) counts[s.status] = (counts[s.status] || 0) + 1;\nreturn [{ json: { success: true, insights: aiResult.output, pipeline_counts: counts, total_active: schools.length } }];"
+        "jsCode": "const aiResult = $input.first().json;\nconst schools = $('Fetch Active Schools').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst counts = {};\nfor (const s of schools) counts[s.status] = (counts[s.status] || 0) + 1;\nreturn [{ json: { success: true, insights: aiResult.output, pipeline_counts: counts, total_active: schools.length } }];"
       },
       "id": "e3bc5d4f-71c1-49d0-9aa7-99304b6303c2",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "6da172a3-475b-482a-9013-3b65b60e9e5d",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [200, -150]
+      "position": [
+        200,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Insights)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Fetch Active Schools", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Active Schools",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Active Schools": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

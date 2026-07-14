@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Ask Advisor)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2400, 0],
-      "notes": "Requires header x-automation-secret. Body: { question }. Powers both the AI Advisor chat and the document-answer part of universal search - see documentation/knowledge-base-module.md."
+      "position": [
+        -2400,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { question }. Powers both the AI Advisor chat and the document-answer part of universal search - see documentation/knowledge-base-module.md.",
+      "webhookId": "f65f4738-c4aa-4183-b5b2-d2a8bda95891"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { question: payload.question || '', auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { question: payload.question || '', auth_ok: authOk } }];"
       },
       "id": "b2b2c2d2-0002-4002-8002-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-2200, 0]
+      "position": [
+        -2200,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-2000, 0]
+      "position": [
+        -2000,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "b2b2c2d2-0002-4002-8002-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1800, 200]
+      "position": [
+        -1800,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -82,10 +117,14 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1800, -150],
+      "position": [
+        -1800,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -94,8 +133,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $vars.VOYAGE_API_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.VOYAGE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -107,51 +152,79 @@
       "name": "Embed Question",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, -150],
+      "position": [
+        -1600,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/match_document_chunks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/match_document_chunks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ query_embedding: $json.data[0].embedding, match_user_id: $('Get Primary User').first().json[0].id, match_count: 6 }) }}",
+        "jsonBody": "={{ JSON.stringify({ query_embedding: $json.data[0].embedding, match_user_id: $('Get Primary User').first().json.id, match_count: 6 }) }}",
         "options": {}
       },
       "id": "b2b2c2d2-0002-4002-8002-000000000007",
       "name": "Vector Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/business_memory",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/business_memory",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "select", "value": "category,key,value" }]
+          "parameters": [
+            {
+              "name": "select",
+              "value": "category,key,value"
+            }
+          ]
         },
         "options": {}
       },
@@ -159,28 +232,47 @@
       "name": "Fetch Business Memory",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "neq.lost_lead" },
-            { "name": "order", "value": "updated_at.desc" },
-            { "name": "select", "value": "school_name,status,interest_level,next_follow_up_date" }
+            {
+              "name": "status",
+              "value": "neq.lost_lead"
+            },
+            {
+              "name": "order",
+              "value": "updated_at.desc"
+            },
+            {
+              "name": "select",
+              "value": "school_name,status,interest_level,next_follow_up_date"
+            }
           ]
         },
         "options": {}
@@ -189,29 +281,51 @@
       "name": "Fetch Active Pipeline",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, -150],
+      "position": [
+        -1000,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "status", "value": "in.(pending,in_progress)" },
-            { "name": "order", "value": "priority.desc" },
-            { "name": "limit", "value": "15" },
-            { "name": "select", "value": "title,priority,due_date" }
+            {
+              "name": "status",
+              "value": "in.(pending,in_progress)"
+            },
+            {
+              "name": "order",
+              "value": "priority.desc"
+            },
+            {
+              "name": "limit",
+              "value": "15"
+            },
+            {
+              "name": "select",
+              "value": "title,priority,due_date"
+            }
           ]
         },
         "options": {}
@@ -220,38 +334,57 @@
       "name": "Fetch Pending Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, -150],
+      "position": [
+        -800,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const chunks = $('Vector Search').first().json || [];\nconst memory = $('Fetch Business Memory').first().json || [];\nconst pipeline = $('Fetch Active Pipeline').first().json || [];\nconst tasks = $('Fetch Pending Tasks').first().json || [];\n\nconst docSection = chunks.length\n  ? 'Relevant document excerpts:\\n' + chunks.map(c => `- ${c.content}`).join('\\n\\n')\n  : 'No relevant document excerpts found.';\n\nconst memorySection = memory.length\n  ? 'Business memory:\\n' + memory.map(m => `- [${m.category}] ${m.key}: ${m.value}`).join('\\n')\n  : 'No business memory saved yet.';\n\nconst pipelineSection = pipeline.length\n  ? 'Current sales pipeline (active leads):\\n' + pipeline.map(s => `- ${s.school_name}: ${s.status}, interest ${s.interest_level}${s.next_follow_up_date ? ', next follow-up ' + s.next_follow_up_date : ''}`).join('\\n')\n  : 'No active pipeline data.';\n\nconst tasksSection = tasks.length\n  ? 'Pending tasks:\\n' + tasks.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + t.due_date : ''})`).join('\\n')\n  : 'No pending tasks.';\n\nconst retrievedContext = [docSection, memorySection, pipelineSection, tasksSection].join('\\n\\n');\nconst documentIds = [...new Set(chunks.map(c => c.document_id).filter(Boolean))];\n\nreturn [{\n  json: {\n    question: $('Normalize & Check Auth').first().json.question,\n    user_id: $('Get Primary User').first().json[0].id,\n    retrieved_context: retrievedContext,\n    document_ids: documentIds,\n    chunk_count: chunks.length\n  }\n}];"
+        "jsCode": "const chunks = $('Vector Search').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst memory = $('Fetch Business Memory').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst pipeline = $('Fetch Active Pipeline').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst tasks = $('Fetch Pending Tasks').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\n\nconst docSection = chunks.length\n  ? 'Relevant document excerpts:\\n' + chunks.map(c => `- ${c.content}`).join('\\n\\n')\n  : 'No relevant document excerpts found.';\n\nconst memorySection = memory.length\n  ? 'Business memory:\\n' + memory.map(m => `- [${m.category}] ${m.key}: ${m.value}`).join('\\n')\n  : 'No business memory saved yet.';\n\nconst pipelineSection = pipeline.length\n  ? 'Current sales pipeline (active leads):\\n' + pipeline.map(s => `- ${s.school_name}: ${s.status}, interest ${s.interest_level}${s.next_follow_up_date ? ', next follow-up ' + s.next_follow_up_date : ''}`).join('\\n')\n  : 'No active pipeline data.';\n\nconst tasksSection = tasks.length\n  ? 'Pending tasks:\\n' + tasks.map(t => `- ${t.title} (${t.priority}${t.due_date ? ', due ' + t.due_date : ''})`).join('\\n')\n  : 'No pending tasks.';\n\nconst retrievedContext = [docSection, memorySection, pipelineSection, tasksSection].join('\\n\\n');\nconst documentIds = [...new Set(chunks.map(c => c.document_id).filter(Boolean))];\n\nreturn [{\n  json: {\n    question: $('Normalize & Check Auth').first().json.question,\n    user_id: $('Get Primary User').first().json.id,\n    retrieved_context: retrievedContext,\n    document_ids: documentIds,\n    chunk_count: chunks.length\n  }\n}];"
       },
       "id": "b2b2c2d2-0002-4002-8002-00000000000b",
       "name": "Build Retrieved Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, -150],
+      "position": [
+        -600,
+        -150
+      ],
       "notes": "Blends document RAG results with live business data (memory, pipeline, tasks) into one context string, so a single reused prompt (knowledge_search) can answer both document questions and business-advisor questions - see documentation/knowledge-base-module.md."
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/knowledge_documents",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/knowledge_documents",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "={{ $json.document_ids.length ? 'in.(' + $json.document_ids.join(',') + ')' : 'eq.00000000-0000-0000-0000-000000000000' }}" },
-            { "name": "select", "value": "filename" }
+            {
+              "name": "id",
+              "value": "={{ $json.document_ids.length ? 'in.(' + $json.document_ids.join(',') + ')' : 'eq.00000000-0000-0000-0000-000000000000' }}"
+            },
+            {
+              "name": "select",
+              "value": "filename"
+            }
           ]
         },
         "options": {}
@@ -260,10 +393,14 @@
       "name": "Fetch Source Document Names",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, -150],
+      "position": [
+        -400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -273,14 +410,17 @@
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, -150]
+      "position": [
+        -200,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -290,19 +430,34 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/rpc/increment_document_access",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/increment_document_access",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -314,22 +469,38 @@
       "name": "Increment Document Access",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [200, -150],
+      "position": [
+        200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/search_history",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/search_history",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -341,85 +512,229 @@
       "name": "Log Search History",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [400, -150],
+      "position": [
+        400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const aiResult = $('Call AI - Process Request').first().json;\nconst sourceRows = $('Fetch Source Document Names').first().json || [];\nconst sources = [...new Set(sourceRows.map(d => d.filename))];\nreturn [{\n  json: {\n    success: true,\n    answer: aiResult.output,\n    sources\n  }\n}];"
+        "jsCode": "const aiResult = $('Call AI - Process Request').first().json;\nconst sourceRows = $('Fetch Source Document Names').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst sources = [...new Set(sourceRows.map(d => d.filename))];\nreturn [{\n  json: {\n    success: true,\n    answer: aiResult.output,\n    sources\n  }\n}];"
       },
       "id": "b2b2c2d2-0002-4002-8002-000000000011",
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, -150]
+      "position": [
+        600,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "b2b2c2d2-0002-4002-8002-000000000012",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [800, -150]
+      "position": [
+        800,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Ask Advisor)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Embed Question", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Embed Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Embed Question": {
-      "main": [[{ "node": "Vector Search", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Vector Search": {
-      "main": [[{ "node": "Fetch Business Memory", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Business Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Business Memory": {
-      "main": [[{ "node": "Fetch Active Pipeline", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Active Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Active Pipeline": {
-      "main": [[{ "node": "Fetch Pending Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Pending Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Pending Tasks": {
-      "main": [[{ "node": "Build Retrieved Context", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Retrieved Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Retrieved Context": {
-      "main": [[{ "node": "Fetch Source Document Names", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Source Document Names",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Source Document Names": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Increment Document Access", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Increment Document Access",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Increment Document Access": {
-      "main": [[{ "node": "Log Search History", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Log Search History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Log Search History": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

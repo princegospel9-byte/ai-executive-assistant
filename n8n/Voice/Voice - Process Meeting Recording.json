@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Process Meeting)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1800, 0],
-      "notes": "Requires header x-automation-secret. Body: { meeting_id, transcript_text? }. Next.js normally saves transcript_text to the meeting_transcripts row directly (via the same ElevenLabs STT proxy used for conversation) before calling this - transcript_text in the body is only a fallback if that write didn't happen for some reason."
+      "position": [
+        -1800,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { meeting_id, transcript_text? }. Next.js normally saves transcript_text to the meeting_transcripts row directly (via the same ElevenLabs STT proxy used for conversation) before calling this - transcript_text in the body is only a fallback if that write didn't happen for some reason.",
+      "webhookId": "d3f1e26f-0742-42b8-850a-bae6864613db"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { meeting_id: payload.meeting_id, transcript_text: payload.transcript_text || '', auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { meeting_id: payload.meeting_id, transcript_text: payload.transcript_text || '', auth_ok: authOk } }];"
       },
       "id": "l1l1a1b1-0011-4011-8011-000000000002",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1400, 0]
+      "position": [
+        -1400,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "l1l1a1b1-0011-4011-8011-000000000004",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1200, 200]
+      "position": [
+        -1200,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/meeting_transcripts",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/meeting_transcripts",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "id", "value": "=eq.{{ $('Normalize & Check Auth').first().json.meeting_id }}" },
-            { "name": "select", "value": "user_id,title,transcript_text" }
+            {
+              "name": "id",
+              "value": "=eq.{{ $('Normalize & Check Auth').first().json.meeting_id }}"
+            },
+            {
+              "name": "select",
+              "value": "user_id,title,transcript_text"
+            }
           ]
         },
         "options": {}
@@ -82,10 +117,14 @@
       "name": "Fetch Meeting",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, -150],
+      "position": [
+        -1200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -95,14 +134,17 @@
       "name": "Build AI Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, -150]
+      "position": [
+        -1000,
+        -150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "NScqkbAehRkYoqbX",
           "mode": "list",
           "cachedResultName": "AI - Process Request"
         },
@@ -112,7 +154,10 @@
       "name": "Call AI - Process Request",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [-800, -150]
+      "position": [
+        -800,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -122,7 +167,10 @@
       "name": "Parse Summary Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, -150]
+      "position": [
+        -600,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -132,20 +180,35 @@
       "name": "Prep Task Rows",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, -150],
+      "position": [
+        -400,
+        -150
+      ],
       "notes": "Action items become real tasks (Phase 4's table), not a new 'action_items' concept - so they show up wherever tasks already show up (Tasks page, daily briefing)."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -157,34 +220,53 @@
       "name": "Insert Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, -150],
+      "position": [
+        -200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "No-ops safely on an empty array (no action items identified)."
+      "notes": "No-ops safely on an empty array (no action items identified).",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const parsed = $('Parse Summary Output').first().json;\nconst insertedTasks = $input.first().json || [];\nconst rows = insertedTasks.map(t => ({ user_id: parsed.user_id, from_type: 'meeting_transcript', from_id: parsed.meeting_id, to_type: 'task', to_id: t.id, relationship_type: 'action_item_from' }));\nreturn [{ json: { rows } }];"
+        "jsCode": "const parsed = $('Parse Summary Output').first().json;\nconst insertedTasks = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0) || [];\nconst rows = insertedTasks.map(t => ({ user_id: parsed.user_id, from_type: 'meeting_transcript', from_id: parsed.meeting_id, to_type: 'task', to_id: t.id, relationship_type: 'action_item_from' }));\nreturn [{ json: { rows } }];"
       },
       "id": "l1l1a1b1-0011-4011-8011-00000000000f",
       "name": "Prep Relationship Rows",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, 50],
+      "position": [
+        -200,
+        50
+      ],
       "notes": "Phase 9 addition: links each action-item task back to the meeting it came from in entity_relationships (the knowledge graph) - one concrete example of the pattern, not wired into every creation point across the system yet."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/entity_relationships?on_conflict=user_id,from_type,from_id,to_type,to_id,relationship_type",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/entity_relationships?on_conflict=user_id,from_type,from_id,to_type,to_id,relationship_type",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -196,11 +278,15 @@
       "name": "Insert Relationships",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 50],
+      "position": [
+        0,
+        50
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "No-ops safely on an empty array."
+      "notes": "No-ops safely on an empty array.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -210,24 +296,44 @@
       "name": "Prepare Meeting Update",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -150]
+      "position": [
+        0,
+        -150
+      ]
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/meeting_transcripts",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/meeting_transcripts",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $json.meeting_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $json.meeting_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -238,10 +344,14 @@
       "name": "Update Meeting Record",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [200, -150],
+      "position": [
+        200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -251,68 +361,184 @@
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, -150]
+      "position": [
+        400,
+        -150
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "l1l1a1b1-0011-4011-8011-00000000000e",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [600, -150]
+      "position": [
+        600,
+        -150
+      ]
     }
   ],
   "connections": {
     "Called From Dashboard (Process Meeting)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Fetch Meeting", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Fetch Meeting",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Fetch Meeting": {
-      "main": [[{ "node": "Build AI Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build AI Request": {
-      "main": [[{ "node": "Call AI - Process Request", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call AI - Process Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Call AI - Process Request": {
-      "main": [[{ "node": "Parse Summary Output", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse Summary Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Summary Output": {
-      "main": [[{ "node": "Prep Task Rows", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prep Task Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prep Task Rows": {
-      "main": [[{ "node": "Insert Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Tasks": {
       "main": [
         [
-          { "node": "Prepare Meeting Update", "type": "main", "index": 0 },
-          { "node": "Prep Relationship Rows", "type": "main", "index": 0 }
+          {
+            "node": "Prepare Meeting Update",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prep Relationship Rows",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Prep Relationship Rows": {
-      "main": [[{ "node": "Insert Relationships", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Relationships",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Meeting Update": {
-      "main": [[{ "node": "Update Meeting Record", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Update Meeting Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Update Meeting Record": {
-      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

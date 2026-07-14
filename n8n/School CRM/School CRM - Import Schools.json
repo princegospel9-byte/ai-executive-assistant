@@ -12,28 +12,43 @@
       "name": "Called From Dashboard (Import)",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-2000, 0],
-      "notes": "Requires header x-automation-secret. Body: { rows: [{ school_name, location?, student_population?, contact_person?, phone?, email?, current_software_system?, lead_source? }] }. Responds immediately with a count, then keeps processing rows in the background - see notes on 'Build Ack Response'."
+      "position": [
+        -2000,
+        0
+      ],
+      "notes": "Requires header x-automation-secret. Body: { rows: [{ school_name, location?, student_population?, contact_person?, phone?, email?, current_software_system?, lead_source? }] }. Responds immediately with a count, then keeps processing rows in the background - see notes on 'Build Ack Response'.",
+      "webhookId": "55a11e7a-a5f5-4cc7-8e82-e6b1ebd7eed6"
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $vars.N8N_WEBHOOK_SECRET;\nreturn [{ json: { rows: payload.rows || [], auth_ok: authOk } }];"
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{ json: { rows: payload.rows || [], auth_ok: authOk } }];"
       },
       "id": "e0bcb6da-09b2-4b88-a9dd-7cc46c200b45",
       "name": "Normalize & Check Auth",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.auth_ok }}",
               "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,36 +59,56 @@
       "name": "Authorized?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-1600, 0]
+      "position": [
+        -1600,
+        0
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
-        "options": { "responseCode": 401 }
+        "options": {
+          "responseCode": 401
+        }
       },
       "id": "72469f1b-afd6-473e-8182-dbf7520b07fc",
       "name": "Respond 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1400, 200]
+      "position": [
+        -1400,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -82,20 +117,27 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, -150],
+      "position": [
+        -1400,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const auth = $('Normalize & Check Auth').first().json;\nconst userId = $('Get Primary User').first().json[0].id;\nconst rows = (auth.rows || []).map(r => ({\n  user_id: userId,\n  school_name: r.school_name,\n  location: r.location || null,\n  student_population: r.student_population || null,\n  contact_person: r.contact_person || null,\n  phone: r.phone || null,\n  email: r.email || null,\n  current_software_system: r.current_software_system || null,\n  lead_source: r.lead_source || null\n}));\nreturn [{ json: { user_id: userId, rows, row_count: rows.length } }];"
+        "jsCode": "const auth = $('Normalize & Check Auth').first().json;\nconst userId = $('Get Primary User').first().json.id;\nconst rows = (auth.rows || []).map(r => ({\n  user_id: userId,\n  school_name: r.school_name,\n  location: r.location || null,\n  student_population: r.student_population || null,\n  contact_person: r.contact_person || null,\n  phone: r.phone || null,\n  email: r.email || null,\n  current_software_system: r.current_software_system || null,\n  lead_source: r.lead_source || null\n}));\nreturn [{ json: { user_id: userId, rows, row_count: rows.length } }];"
       },
       "id": "464fa44d-c56e-4fa0-9741-4990da5ed09f",
       "name": "Prep Rows",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1200, -150]
+      "position": [
+        -1200,
+        -150
+      ]
     },
     {
       "parameters": {
@@ -105,40 +147,66 @@
       "name": "Build Ack Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1000, -300],
+      "position": [
+        -1000,
+        -300
+      ],
       "notes": "Responds immediately rather than waiting for all rows to finish - a bulk import of even a modest list would otherwise risk the HTTP client timing out waiting synchronously."
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ $json }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "e5b0d4e4-4e62-4309-ba8d-7fbf6be3dff1",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-800, -300]
+      "position": [
+        -800,
+        -300
+      ]
     },
     {
-      "parameters": { "fieldToSplitOut": "rows", "options": {} },
+      "parameters": {
+        "fieldToSplitOut": "rows",
+        "options": {}
+      },
       "id": "5c0e2cdc-a038-4d6b-9056-283b2c58a6db",
       "name": "Split Out Rows",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [-1000, 0]
+      "position": [
+        -1000,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/organizations?on_conflict=user_id,name",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/organizations?on_conflict=user_id,name",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -150,10 +218,14 @@
       "name": "Upsert Organization",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, 0],
+      "position": [
+        -800,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -163,19 +235,34 @@
       "name": "Prep Contact Upsert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/contacts?on_conflict=user_id,email",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/contacts?on_conflict=user_id,email",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -187,10 +274,14 @@
       "name": "Upsert Contact",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, 0],
+      "position": [
+        -400,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -200,19 +291,34 @@
       "name": "Prep School Upsert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-200, 0]
+      "position": [
+        -200,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/schools?on_conflict=user_id,school_name",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/schools?on_conflict=user_id,school_name",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -224,53 +330,149 @@
       "name": "Upsert School",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     }
   ],
   "connections": {
     "Called From Dashboard (Import)": {
-      "main": [[{ "node": "Normalize & Check Auth", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize & Check Auth": {
-      "main": [[{ "node": "Authorized?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Authorized?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Authorized?": {
       "main": [
-        [{ "node": "Get Primary User", "type": "main", "index": 0 }],
-        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Prep Rows", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prep Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prep Rows": {
       "main": [
         [
-          { "node": "Build Ack Response", "type": "main", "index": 0 },
-          { "node": "Split Out Rows", "type": "main", "index": 0 }
+          {
+            "node": "Build Ack Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Out Rows",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Build Ack Response": {
-      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split Out Rows": {
-      "main": [[{ "node": "Upsert Organization", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Organization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Organization": {
-      "main": [[{ "node": "Prep Contact Upsert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prep Contact Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prep Contact Upsert": {
-      "main": [[{ "node": "Upsert Contact", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Contact": {
-      "main": [[{ "node": "Prep School Upsert", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Prep School Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prep School Upsert": {
-      "main": [[{ "node": "Upsert School", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert School",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

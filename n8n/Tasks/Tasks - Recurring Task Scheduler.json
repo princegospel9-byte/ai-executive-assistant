@@ -3,31 +3,55 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "hours" }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
       },
       "id": "e159ba60-0c31-4245-92ac-39ecd7ad8151",
       "name": "Every Hour",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-1000, 0]
+      "position": [
+        -1000,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/recurring_tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/recurring_tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "is_active", "value": "eq.true" },
-            { "name": "next_run_at", "value": "=lte.{{ new Date().toISOString() }}" },
-            { "name": "select", "value": "*" }
+            {
+              "name": "is_active",
+              "value": "eq.true"
+            },
+            {
+              "name": "next_run_at",
+              "value": "=lte.{{ new Date().toISOString() }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
           ]
         },
         "options": {}
@@ -36,10 +60,14 @@
       "name": "Fetch Due Recurring Tasks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, 0],
+      "position": [
+        -800,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -49,15 +77,24 @@
       "name": "Normalize List",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-700, 0]
+      "position": [
+        -700,
+        0
+      ]
     },
     {
-      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
       "id": "0fc3da6e-9b50-4826-a4f7-bf0718ad0348",
       "name": "Split Out Due Tasks",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
@@ -67,20 +104,35 @@
       "name": "Compute Advance",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, 0],
+      "position": [
+        -400,
+        0
+      ],
       "notes": "Advances by exactly one interval from the stored next_run_at, not from 'now' - avoids drift if the scheduler is ever late."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -92,27 +144,48 @@
       "name": "Insert Task From Recurring",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, 0],
+      "position": [
+        -200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/recurring_tasks",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/recurring_tasks",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "id", "value": "=eq.{{ $json.recurring_task_id }}" }]
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{ $json.recurring_task_id }}"
+            }
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -123,30 +196,82 @@
       "name": "Update Recurring Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     }
   ],
   "connections": {
     "Every Hour": {
-      "main": [[{ "node": "Fetch Due Recurring Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Due Recurring Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Due Recurring Tasks": {
-      "main": [[{ "node": "Normalize List", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize List": {
-      "main": [[{ "node": "Split Out Due Tasks", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Split Out Due Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split Out Due Tasks": {
-      "main": [[{ "node": "Compute Advance", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Compute Advance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Compute Advance": {
-      "main": [[{ "node": "Insert Task From Recurring", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Task From Recurring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Task From Recurring": {
-      "main": [[{ "node": "Update Recurring Task", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Update Recurring Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

@@ -3,30 +3,52 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 10 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
       },
       "id": "a5b92406-2397-43c0-95dd-5fed945341b2",
       "name": "Every 10 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-2600, 0]
+      "position": [
+        -2600,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -35,11 +57,15 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2400, 0],
+      "position": [
+        -2400,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Single-user simplification, same pattern as Core - Error Handler. Revisit when multi-tenant."
+      "notes": "Single-user simplification, same pattern as Core - Error Handler. Revisit when multi-tenant.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -53,29 +79,53 @@
       "name": "Get Gmail Profile",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2200, 0],
-      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } },
+      "position": [
+        -2200,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/email_accounts",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/email_accounts",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "user_id", "value": "=eq.{{ $('Get Primary User').first().json[0].id }}" },
-            { "name": "email_address", "value": "=eq.{{ $json.emailAddress }}" },
-            { "name": "select", "value": "*" }
+            {
+              "name": "user_id",
+              "value": "=eq.{{ $('Get Primary User').first().json.id }}"
+            },
+            {
+              "name": "email_address",
+              "value": "=eq.{{ $json.emailAddress }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
           ]
         },
         "options": {}
@@ -84,32 +134,51 @@
       "name": "Get Existing Account",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-2000, 0],
+      "position": [
+        -2000,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
-        "jsCode": "const existing = $input.first().json;\nconst gmailProfile = $('Get Gmail Profile').first().json;\nconst primaryUser = $('Get Primary User').first().json[0];\n\nconst account = Array.isArray(existing) && existing[0] ? existing[0] : null;\n// First run: only look back 24h, to avoid importing years of mail on first connect.\nconst sinceTimestamp = account?.last_synced_at\n  ? Math.floor(new Date(account.last_synced_at).getTime() / 1000)\n  : Math.floor(Date.now() / 1000) - 86400;\n\nreturn [{\n  json: {\n    user_id: primaryUser.id,\n    email_address: gmailProfile.emailAddress,\n    since_timestamp: sinceTimestamp\n  }\n}];"
+        "jsCode": "const existing = $input.first().json;\nconst gmailProfile = $('Get Gmail Profile').first().json;\nconst primaryUser = $('Get Primary User').first().json;\n\nconst account = Array.isArray(existing) && existing[0] ? existing[0] : null;\n// First run: only look back 24h, to avoid importing years of mail on first connect.\nconst sinceTimestamp = account?.last_synced_at\n  ? Math.floor(new Date(account.last_synced_at).getTime() / 1000)\n  : Math.floor(Date.now() / 1000) - 86400;\n\nreturn [{\n  json: {\n    user_id: primaryUser.id,\n    email_address: gmailProfile.emailAddress,\n    since_timestamp: sinceTimestamp\n  }\n}];"
       },
       "id": "4e566cc2-99d9-48e0-873b-51958a2546ce",
       "name": "Determine Sync Window",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1800, 0]
+      "position": [
+        -1800,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/email_accounts?on_conflict=user_id,email_address",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/email_accounts?on_conflict=user_id,email_address",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -121,11 +190,15 @@
       "name": "Upsert Email Account",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1600, 0],
+      "position": [
+        -1600,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Upsert on the (user_id, email_address) unique constraint. This also advances last_synced_at to now - the OLD value was already captured in Determine Sync Window before this ran."
+      "notes": "Upsert on the (user_id, email_address) unique constraint. This also advances last_synced_at to now - the OLD value was already captured in Determine Sync Window before this ran.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -136,8 +209,14 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "q", "value": "=after:{{ $('Determine Sync Window').first().json.since_timestamp }}" },
-            { "name": "maxResults", "value": "25" }
+            {
+              "name": "q",
+              "value": "=after:{{ $('Determine Sync Window').first().json.since_timestamp }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "25"
+            }
           ]
         },
         "options": {}
@@ -146,11 +225,20 @@
       "name": "List New Messages",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1400, 0],
-      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } },
+      "position": [
+        -1400,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -160,7 +248,10 @@
       "name": "Normalize Messages List",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-1200, 0],
+      "position": [
+        -1200,
+        0
+      ],
       "notes": "Gmail returns no 'messages' key at all when there are zero results - this guarantees Split Out always sees an array, empty or not, so zero new mail is a clean no-op rather than a node error."
     },
     {
@@ -172,7 +263,10 @@
       "name": "Split Out Messages",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [-1000, 0]
+      "position": [
+        -1000,
+        0
+      ]
     },
     {
       "parameters": {
@@ -182,7 +276,12 @@
         "nodeCredentialType": "gmailOAuth2",
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [{ "name": "format", "value": "full" }]
+          "parameters": [
+            {
+              "name": "format",
+              "value": "full"
+            }
+          ]
         },
         "options": {}
       },
@@ -190,11 +289,20 @@
       "name": "Get Message Detail",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-800, 0],
-      "credentials": { "gmailOAuth2": { "id": "", "name": "Gmail account" } },
+      "position": [
+        -800,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -204,19 +312,34 @@
       "name": "Parse Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/emails?on_conflict=email_account_id,gmail_message_id",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/emails?on_conflict=email_account_id,gmail_message_id",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=ignore-duplicates,return=representation" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=ignore-duplicates,return=representation"
+            }
           ]
         },
         "sendBody": true,
@@ -228,21 +351,32 @@
       "name": "Insert Email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-400, 0],
+      "position": [
+        -400,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "resolution=ignore-duplicates means an already-seen gmail_message_id returns an empty array instead of erroring or duplicating - that's how re-running this workflow safely skips mail it already processed."
+      "notes": "resolution=ignore-duplicates means an already-seen gmail_message_id returns an empty array instead of erroring or duplicating - that's how re-running this workflow safely skips mail it already processed.",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "leftValue": "={{ $json.length }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ],
           "combinator": "and"
@@ -253,7 +387,10 @@
       "name": "Is New Email?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
-      "position": [-200, 0]
+      "position": [
+        -200,
+        0
+      ]
     },
     {
       "parameters": {
@@ -263,20 +400,35 @@
       "name": "Prepare Attachments",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, -150],
+      "position": [
+        0,
+        -150
+      ],
       "notes": "Returns zero items when there are no attachments - the Insert Attachments node simply doesn't run for that branch, no error."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/email_attachments",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/email_attachments",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -288,10 +440,14 @@
       "name": "Insert Attachments",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [200, -150],
+      "position": [
+        200,
+        -150
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -301,14 +457,17 @@
       "name": "Build Analyze Trigger Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [0, 150]
+      "position": [
+        0,
+        150
+      ]
     },
     {
       "parameters": {
         "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
+          "value": "J70rHL71zhRHqt3V",
           "mode": "list",
           "cachedResultName": "Email - Analyze Email"
         },
@@ -318,7 +477,10 @@
       "name": "Call Analyze Email",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
-      "position": [200, 150]
+      "position": [
+        200,
+        150
+      ]
     },
     {
       "parameters": {},
@@ -326,60 +488,189 @@
       "name": "Already Processed",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [0, 350]
+      "position": [
+        0,
+        350
+      ]
     }
   ],
   "connections": {
     "Every 10 Minutes": {
-      "main": [[{ "node": "Get Primary User", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "Get Gmail Profile", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Gmail Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Gmail Profile": {
-      "main": [[{ "node": "Get Existing Account", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Existing Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Existing Account": {
-      "main": [[{ "node": "Determine Sync Window", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Determine Sync Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Determine Sync Window": {
-      "main": [[{ "node": "Upsert Email Account", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Email Account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Email Account": {
-      "main": [[{ "node": "List New Messages", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "List New Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "List New Messages": {
-      "main": [[{ "node": "Normalize Messages List", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize Messages List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize Messages List": {
-      "main": [[{ "node": "Split Out Messages", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Split Out Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split Out Messages": {
-      "main": [[{ "node": "Get Message Detail", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Message Detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Message Detail": {
-      "main": [[{ "node": "Parse Email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Email": {
-      "main": [[{ "node": "Insert Email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Insert Email": {
-      "main": [[{ "node": "Is New Email?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Is New Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is New Email?": {
       "main": [
         [
-          { "node": "Prepare Attachments", "type": "main", "index": 0 },
-          { "node": "Build Analyze Trigger Payload", "type": "main", "index": 0 }
+          {
+            "node": "Prepare Attachments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Analyze Trigger Payload",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Already Processed", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Already Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Prepare Attachments": {
-      "main": [[{ "node": "Insert Attachments", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Insert Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Analyze Trigger Payload": {
-      "main": [[{ "node": "Call Analyze Email", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Call Analyze Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,

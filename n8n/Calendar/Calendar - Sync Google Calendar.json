@@ -3,30 +3,52 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
       },
       "id": "b1be1a64-ef02-4cae-b1cb-d1d004773e6a",
       "name": "Every 15 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [-1400, 0]
+      "position": [
+        -1400,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/profiles",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/profiles",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
           ]
         },
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "select", "value": "id" },
-            { "name": "limit", "value": "1" }
+            {
+              "name": "select",
+              "value": "id"
+            },
+            {
+              "name": "limit",
+              "value": "1"
+            }
           ]
         },
         "options": {}
@@ -35,10 +57,14 @@
       "name": "Get Primary User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1200, 0],
+      "position": [
+        -1200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -49,11 +75,26 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "timeMin", "value": "={{ new Date(Date.now() - 86400000).toISOString() }}" },
-            { "name": "timeMax", "value": "={{ new Date(Date.now() + 31 * 86400000).toISOString() }}" },
-            { "name": "singleEvents", "value": "true" },
-            { "name": "orderBy", "value": "startTime" },
-            { "name": "maxResults", "value": "250" }
+            {
+              "name": "timeMin",
+              "value": "={{ new Date(Date.now() - 86400000).toISOString() }}"
+            },
+            {
+              "name": "timeMax",
+              "value": "={{ new Date(Date.now() + 31 * 86400000).toISOString() }}"
+            },
+            {
+              "name": "singleEvents",
+              "value": "true"
+            },
+            {
+              "name": "orderBy",
+              "value": "startTime"
+            },
+            {
+              "name": "maxResults",
+              "value": "250"
+            }
           ]
         },
         "options": {}
@@ -62,12 +103,21 @@
       "name": "List Calendar Events",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1000, 0],
-      "credentials": { "googleCalendarOAuth2Api": { "id": "", "name": "Google Calendar account" } },
+      "position": [
+        -1000,
+        0
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "",
+          "name": "Google Calendar account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Rolling window: 1 day back, 31 days forward. Re-fetches and upserts the whole window every run rather than incremental sync - simpler and self-healing, at the cost of not detecting events deleted in Google Calendar (documented limitation, see email-module-style docs for Phase 4)."
+      "notes": "Rolling window: 1 day back, 31 days forward. Re-fetches and upserts the whole window every run rather than incremental sync - simpler and self-healing, at the cost of not detecting events deleted in Google Calendar (documented limitation, see email-module-style docs for Phase 4).",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -77,37 +127,61 @@
       "name": "Normalize List",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-800, 0]
+      "position": [
+        -800,
+        0
+      ]
     },
     {
-      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
       "id": "211a6a4b-dd2c-45b7-9bb6-d0d44768957d",
       "name": "Split Out Events",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
-      "position": [-600, 0]
+      "position": [
+        -600,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const event = $input.first().json;\nconst userId = $('Get Primary User').first().json[0].id;\n\nconst start = event.start?.dateTime || (event.start?.date ? `${event.start.date}T00:00:00Z` : null);\nconst end = event.end?.dateTime || (event.end?.date ? `${event.end.date}T23:59:59Z` : null);\nif (!start || !end) return [];\n\nreturn [{\n  json: {\n    user_id: userId,\n    external_event_id: event.id,\n    title: event.summary || '(no title)',\n    description: event.description || null,\n    start_time: start,\n    end_time: end,\n    location: event.location || null,\n    meeting_link: event.hangoutLink || event.conferenceData?.entryPoints?.[0]?.uri || null,\n    attendees: (event.attendees || []).map(a => a.email).filter(Boolean),\n    sync_status: event.status === 'cancelled' ? 'removed' : 'synced'\n  }\n}];"
+        "jsCode": "const event = $input.first().json;\nconst userId = $('Get Primary User').first().json.id;\n\nconst start = event.start?.dateTime || (event.start?.date ? `${event.start.date}T00:00:00Z` : null);\nconst end = event.end?.dateTime || (event.end?.date ? `${event.end.date}T23:59:59Z` : null);\nif (!start || !end) return [];\n\nreturn [{\n  json: {\n    user_id: userId,\n    external_event_id: event.id,\n    title: event.summary || '(no title)',\n    description: event.description || null,\n    start_time: start,\n    end_time: end,\n    location: event.location || null,\n    meeting_link: event.hangoutLink || event.conferenceData?.entryPoints?.[0]?.uri || null,\n    attendees: (event.attendees || []).map(a => a.email).filter(Boolean),\n    sync_status: event.status === 'cancelled' ? 'removed' : 'synced'\n  }\n}];"
       },
       "id": "8a1d9ac7-4a99-42a9-a627-20f1ad33b32a",
       "name": "Map Event Fields",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-400, 0]
+      "position": [
+        -400,
+        0
+      ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $vars.SUPABASE_URL }}/rest/v1/calendar_events?on_conflict=user_id,external_event_id",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/calendar_events?on_conflict=user_id,external_event_id",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Authorization", "value": "=Bearer {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}" },
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" }
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
           ]
         },
         "sendBody": true,
@@ -119,30 +193,82 @@
       "name": "Upsert Calendar Event",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-200, 0],
+      "position": [
+        -200,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
     }
   ],
   "connections": {
     "Every 15 Minutes": {
-      "main": [[{ "node": "Get Primary User", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Primary User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Primary User": {
-      "main": [[{ "node": "List Calendar Events", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "List Calendar Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "List Calendar Events": {
-      "main": [[{ "node": "Normalize List", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Normalize List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Normalize List": {
-      "main": [[{ "node": "Split Out Events", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Split Out Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split Out Events": {
-      "main": [[{ "node": "Map Event Fields", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Map Event Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Map Event Fields": {
-      "main": [[{ "node": "Upsert Calendar Event", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
