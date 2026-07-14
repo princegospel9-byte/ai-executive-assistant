@@ -394,7 +394,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const insertedRows = $input.first().json;\nconst email = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows;\nconst parsed = $('Parse Email').first().json;\nconst attachments = parsed.attachments || [];\nif (!email || attachments.length === 0) return [];\nreturn attachments.map(a => ({\n  json: {\n    email_id: email.id,\n    user_id: parsed.user_id,\n    filename: a.filename,\n    mime_type: a.mime_type,\n    size_bytes: a.size_bytes,\n    gmail_attachment_id: a.attachment_id\n  }\n}));"
+        "jsCode": "const insertedRows = $input.first().json;\nconst email = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows;\nconst parsed = $('Parse Email').first().json;\nconst attachments = parsed.attachments || [];\nif (!email || Object.keys(email).length === 0 || attachments.length === 0) return [];\nreturn attachments.map(a => ({\n  json: {\n    email_id: email.id,\n    user_id: parsed.user_id,\n    filename: a.filename,\n    mime_type: a.mime_type,\n    size_bytes: a.size_bytes,\n    gmail_attachment_id: a.attachment_id\n  }\n}));"
       },
       "id": "818a880c-7e88-4ab2-b8f5-a1709cc24124",
       "name": "Prepare Attachments",

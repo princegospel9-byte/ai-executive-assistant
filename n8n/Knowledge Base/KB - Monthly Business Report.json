@@ -436,7 +436,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const insights = $('Prepare Report Insert').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0).insights || [];\nconst userId = $('Prepare Report Insert').first().json.user_id;\nreturn [{\n  json: {\n    rows: insights.map(i => ({ user_id: userId, category: i.category, title: i.title, detail: i.detail }))\n  }\n}];"
+        "jsCode": "const insights = $('Prepare Report Insert').first().json.insights || [];\nconst userId = $('Prepare Report Insert').first().json.user_id;\nreturn [{\n  json: {\n    rows: insights.map(i => ({ user_id: userId, category: i.category, title: i.title, detail: i.detail }))\n  }\n}];"
       },
       "id": "e4e4f4a4-0004-4004-8004-00000000000e",
       "name": "Prepare Insight Rows",

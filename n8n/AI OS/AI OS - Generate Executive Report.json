@@ -482,7 +482,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const insights = $('Parse Report Output').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0).insights || [];\nconst userId = $('Parse Report Output').first().json.user_id;\nreturn [{ json: { rows: insights.map(i => ({ user_id: userId, category: i.category, title: i.title, detail: i.detail })) } }];"
+        "jsCode": "const insights = $('Parse Report Output').first().json.insights || [];\nconst userId = $('Parse Report Output').first().json.user_id;\nreturn [{ json: { rows: insights.map(i => ({ user_id: userId, category: i.category, title: i.title, detail: i.detail })) } }];"
       },
       "id": "q6q6f6a6-0016-4016-8016-000000000013",
       "name": "Prepare Insight Rows",

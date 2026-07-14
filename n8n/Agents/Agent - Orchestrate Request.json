@@ -881,7 +881,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all().map(item => item.json).filter(item => item && Object.keys(item).length > 0).data || [];\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json.id;\n\nconst outputsText = items.map(i => `${i.agent_name}:\\n${i.output_text}`).join('\\n\\n');\n\nreturn [{\n  json: {\n    prompt_key: 'agent_combine_results',\n    user_id: userId,\n    feature: 'agent_combine_results',\n    variables: { request, agent_outputs: outputsText },\n    agent_runs: items.map(i => ({ agent_key: i.agent_key, agent_name: i.agent_name, output_text: i.output_text, requires_approval: i.requires_approval, approval_id: i.approval_id }))\n  }\n}];"
+        "jsCode": "const items = $input.first().json.data || [];\nconst request = $('Normalize & Check Auth').first().json.request;\nconst userId = $('Get Primary User').first().json.id;\n\nconst outputsText = items.map(i => `${i.agent_name}:\\n${i.output_text}`).join('\\n\\n');\n\nreturn [{\n  json: {\n    prompt_key: 'agent_combine_results',\n    user_id: userId,\n    feature: 'agent_combine_results',\n    variables: { request, agent_outputs: outputsText },\n    agent_runs: items.map(i => ({ agent_key: i.agent_key, agent_name: i.agent_name, output_text: i.output_text, requires_approval: i.requires_approval, approval_id: i.approval_id }))\n  }\n}];"
       },
       "id": "f5f5a5b5-0005-4005-8005-000000000020",
       "name": "Build Combiner Request",

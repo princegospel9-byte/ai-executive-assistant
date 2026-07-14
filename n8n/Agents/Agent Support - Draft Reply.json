@@ -128,7 +128,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json;\nconst ticket = Array.isArray(rows) ? rows[0] : rows;\nif (!ticket) {\n  throw new Error('Ticket not found: ' + $('Normalize & Check Auth').first().json.ticket_id);\n}\nreturn [{ json: ticket }];"
+        "jsCode": "const rows = $input.first().json;\nconst ticket = Array.isArray(rows) ? rows[0] : rows;\nif (!ticket || Object.keys(ticket).length === 0) {\n  throw new Error('Ticket not found: ' + $('Normalize & Check Auth').first().json.ticket_id);\n}\nreturn [{ json: ticket }];"
       },
       "id": "h7h7c7d7-0007-4007-8007-000000000006",
       "name": "Require Ticket Found",

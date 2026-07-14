@@ -128,7 +128,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json;\nconst media = Array.isArray(rows) ? rows[0] : rows;\nif (!media) {\n  throw new Error('Media record not found: ' + $('Normalize & Check Auth').first().json.media_id);\n}\nconst input = $('Normalize & Check Auth').first().json;\nreturn [{\n  json: {\n    prompt_key: 'image_analysis',\n    user_id: media.user_id,\n    feature: 'image_analysis',\n    related_record_type: 'uploaded_media',\n    related_record_id: input.media_id,\n    image_data: input.image_data,\n    image_media_type: input.image_media_type,\n    media_id: input.media_id,\n    variables: { question: input.question }\n  }\n}];"
+        "jsCode": "const rows = $input.first().json;\nconst media = Array.isArray(rows) ? rows[0] : rows;\nif (!media || Object.keys(media).length === 0) {\n  throw new Error('Media record not found: ' + $('Normalize & Check Auth').first().json.media_id);\n}\nconst input = $('Normalize & Check Auth').first().json;\nreturn [{\n  json: {\n    prompt_key: 'image_analysis',\n    user_id: media.user_id,\n    feature: 'image_analysis',\n    related_record_type: 'uploaded_media',\n    related_record_id: input.media_id,\n    image_data: input.image_data,\n    image_media_type: input.image_media_type,\n    media_id: input.media_id,\n    variables: { question: input.question }\n  }\n}];"
       },
       "id": "j9j9e9f9-0009-4009-8009-000000000006",
       "name": "Build AI Request",

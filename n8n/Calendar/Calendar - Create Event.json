@@ -259,7 +259,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.first().json;\nconst event = Array.isArray(rows) ? rows[0] : rows;\nconst conflicts = $('Detect Conflicts').all().map(item => item.json).filter(item => item && Object.keys(item).length > 0).conflicts;\nconst conflictNote = conflicts.length > 0 ? ` Note: this overlaps with ${conflicts.length} existing event(s).` : '';\nreturn [{\n  json: {\n    user_id: event.user_id,\n    title: 'Event created',\n    message: `\"${event.title}\" was added to your calendar.${conflictNote}`,\n    severity: conflicts.length > 0 ? 'warning' : 'info',\n    channel: 'in_app',\n    related_record_type: 'calendar_event',\n    related_record_id: event.id\n  }\n}];"
+        "jsCode": "const rows = $input.first().json;\nconst event = Array.isArray(rows) ? rows[0] : rows;\nconst conflicts = $('Detect Conflicts').first().json.conflicts;\nconst conflictNote = conflicts.length > 0 ? ` Note: this overlaps with ${conflicts.length} existing event(s).` : '';\nreturn [{\n  json: {\n    user_id: event.user_id,\n    title: 'Event created',\n    message: `\"${event.title}\" was added to your calendar.${conflictNote}`,\n    severity: conflicts.length > 0 ? 'warning' : 'info',\n    channel: 'in_app',\n    related_record_type: 'calendar_event',\n    related_record_id: event.id\n  }\n}];"
       },
       "id": "0d7f67bd-d566-4caf-84b2-92c3dc12537f",
       "name": "Build Notification Payload",
