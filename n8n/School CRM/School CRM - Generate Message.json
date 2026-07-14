@@ -354,7 +354,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $('Insert Message').first().json;\nconst message = Array.isArray(rows) ? rows[0] : rows;\nlet approvalId = null;\ntry {\n  approvalId = $('Build Approval Request').first().json.approval_id ?? null;\n} catch (e) {\n  // Not reached on the whatsapp (no-approval) branch - approvalId stays null, which is correct.\n}\nreturn [{ json: { success: true, message_id: message.id, channel: message.channel, subject: message.subject, content: message.content, approval_id: approvalId } }];"
+        "jsCode": "const rows = $('Insert Message').first().json;\nconst message = Array.isArray(rows) ? rows[0] : rows;\nlet approvalId = null;\ntry {\n  approvalId = $('Call Request Approval').first().json.approval_id ?? null;\n} catch (e) {\n  // Not reached on the whatsapp (no-approval) branch - approvalId stays null, which is correct.\n}\nreturn [{ json: { success: true, message_id: message.id, channel: message.channel, subject: message.subject, content: message.content, approval_id: approvalId } }];"
       },
       "id": "9497572a-b214-4a4f-a46b-f431fbe3b198",
       "name": "Build Response",
