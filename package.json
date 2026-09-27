@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test lib/moneymanager/__tests__/*.test.ts",
+    "mm:monitor": "tsx scripts/mm-monitor.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -33,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

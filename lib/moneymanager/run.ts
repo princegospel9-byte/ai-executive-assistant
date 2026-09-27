@@ -1,0 +1,173 @@
+// Monitoring run orchestration. Runnable directly from a script or test
+// with no n8n involved - see scripts/mm-monitor.ts for the CLI entry point.
+//
+// Fail-safe contract (hard requirement, see documentation/moneymanager-
+// monitoring.md): a run that cannot read the snapshot, or whose rules
+// collectively fail to complete, is marked 'incomplete' or 'failed' with a
+// recorded reason. It NEVER reports 'completed' with zero findings as a
+// stand-in for "we don't actually know". Missing data must never look like
+// a clean bill of health.
+import { findingDedupeKey } from './dedupe';
+import { SnapshotIncompleteError, SnapshotReader } from './client/snapshot';
+import { runAllRules } from './rules';
+import type { Finding } from './rules/types';
+import type { MonitoringPersistence } from './persistence/types';
+import { OFFICE_RECORDS_NOT_CONFIGURED, type OfficeRecordsConfigResult } from './office-records/config';
+
+export type RunMonitoringOptions = {
+  snapshotPath: string;
+  userId: string;
+  persistence: MonitoringPersistence;
+  /** Business date this run represents, e.g. '2026-09-22'. Defaults to the
+   * current UTC date - callers running against a specific historical
+   * snapshot should pass this explicitly instead of relying on "today". */
+  businessDate?: string;
+  /** Now-function, overridable for deterministic tests. */
+  now?: () => Date;
+  /** Office Records (Google Sheets) config for officeRecordsComparison.ts.
+   * Defaults to "not configured" when omitted - callers that haven't wired
+   * up loading it from Supabase (lib/moneymanager/office-records/
+   * config.ts's loadOfficeRecordsConfig) still get an explicit
+   * SAVINGS_COMPARE_WITH_OFFICE_RECORDS_NOT_CONFIGURED finding rather than
+   * the rule silently being skipped. This is a partial-incomplete concern,
+   * not a whole-run one: officeRecordsComparisonRule never throws (it
+   * turns "not configured" and fetch failures into findings itself), so an
+   * unconfigured/unavailable office-records source does not stop the other
+   * ten rules from completing normally - the run still finishes
+   * 'completed' overall, with the office-records finding surfacing the gap. */
+  officeRecordsConfig?: OfficeRecordsConfigResult;
+  /** Injectable fetch, threaded to officeRecordsComparisonRule for tests. */
+  fetchImpl?: typeof fetch;
+  /** Reporting period for officeRecordsComparisonRule. See RuleContext's
+   * doc comment (lib/moneymanager/rules/types.ts) for the default. */
+  officeRecordsDateRange?: { dateFrom: string; dateTo: string };
+};
+
+export type RunMonitoringResult = {
+  runId: string;
+  status: 'completed' | 'incomplete' | 'failed';
+  findings: Finding[];
+  incompleteReason: string | null;
+  errorMessage: string | null;
+  findingCounts: Record<string, number>;
+};
+
+export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMonitoringResult> {
+  const now = opts.now ?? (() => new Date());
+  const businessDate = opts.businessDate ?? now().toISOString().slice(0, 10);
+
+  // Snapshot must open and pass schema validation BEFORE we create the run
+  // row, so we always have a size/mtime identifier to record. If it can't
+  // even open, there is nothing to create a run row against except a
+  // 'failed' one with no snapshot identifier available.
+  let reader: SnapshotReader;
+  try {
+    reader = SnapshotReader.open(opts.snapshotPath);
+  } catch (err) {
+    if (err instanceof SnapshotIncompleteError) {
+      // Best-effort: still create a run row so the failure is visible in
+      // mm_monitoring_runs, using the path itself as the identifier since
+      // we couldn't read file stats.
+      const { runId } = await opts.persistence.createRun({
+        userId: opts.userId,
+        businessDate,
+        snapshotIdentifier: opts.snapshotPath,
+        snapshotFileSizeBytes: 0,
+        snapshotFileModifiedAt: now().toISOString(),
+      });
+      await opts.persistence.finishRun({
+        runId,
+        status: 'incomplete',
+        finishedAt: now().toISOString(),
+        incompleteReason: err.reason,
+        errorMessage: null,
+        findingCounts: {},
+      });
+      return {
+        runId,
+        status: 'incomplete',
+        findings: [],
+        incompleteReason: err.reason,
+        errorMessage: null,
+        findingCounts: {},
+      };
+    }
+    throw err;
+  }
+
+  const snapshotIdentifier = `${opts.snapshotPath}#${reader.identifier.fileSizeBytes}b@${reader.identifier.fileModifiedAt}`;
+
+  const { runId } = await opts.persistence.createRun({
+    userId: opts.userId,
+    businessDate,
+    snapshotIdentifier,
+    snapshotFileSizeBytes: reader.identifier.fileSizeBytes,
+    snapshotFileModifiedAt: reader.identifier.fileModifiedAt,
+  });
+
+  try {
+    const ruleResults = await runAllRules({
+      reader,
+      officeRecordsConfig: opts.officeRecordsConfig ?? OFFICE_RECORDS_NOT_CONFIGURED,
+      fetchImpl: opts.fetchImpl,
+      officeRecordsDateRange: opts.officeRecordsDateRange,
+    });
+    const failedRules = ruleResults.filter((r) => r.error !== null);
+    const findings = ruleResults.flatMap((r) => r.findings);
+
+    const findingCounts: Record<string, number> = {};
+    for (const f of findings) {
+      findingCounts[f.severity] = (findingCounts[f.severity] ?? 0) + 1;
+    }
+
+    const findingsWithKeys = findings.map((f) => ({ ...f, dedupeKey: findingDedupeKey(f) }));
+
+    await opts.persistence.upsertFindings(runId, opts.userId, findingsWithKeys);
+    await opts.persistence.createAlertsForFindings(opts.userId, findingsWithKeys);
+    await opts.persistence.recordCheckpoint({
+      userId: opts.userId,
+      snapshotIdentifier,
+      tableCounts: reader.tableCounts(),
+      runId,
+    });
+
+    const status = failedRules.length > 0 ? 'incomplete' : 'completed';
+    const incompleteReason =
+      failedRules.length > 0
+        ? `${failedRules.length} rule(s) failed to run: ${failedRules
+            .map((r) => `${r.ruleId} (${r.error})`)
+            .join('; ')}`
+        : null;
+
+    await opts.persistence.finishRun({
+      runId,
+      status,
+      finishedAt: now().toISOString(),
+      incompleteReason,
+      errorMessage: null,
+      findingCounts,
+    });
+
+    return { runId, status, findings, incompleteReason, errorMessage: null, findingCounts };
+  } catch (err) {
+    const errorMessage = (err as Error).message;
+    await opts.persistence.finishRun({
+      runId,
+      status: 'failed',
+      finishedAt: now().toISOString(),
+      incompleteReason: null,
+      errorMessage,
+      findingCounts: {},
+    });
+    return {
+      runId,
+      status: 'failed',
+      findings: [],
+      incompleteReason: null,
+      errorMessage,
+      findingCounts: {},
+    };
+  } finally {
+    reader.close();
+  }
+}
