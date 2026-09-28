@@ -10,10 +10,10 @@ export const missingTransactionsRule: Rule = {
   ruleId: 'mm.missing_transactions.v1',
   description:
     'Orphaned foreign keys: customer_ledger_entries/ledger_entries/withdrawal_records pointing at rows that no longer exist.',
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
 
-    for (const orphan of reader.orphanedCustomerLedgerEntries()) {
+    for (const orphan of await reader.orphanedCustomerLedgerEntries()) {
       findings.push({
         findingType: 'ORPHANED_CUSTOMER_LEDGER_ENTRY',
         severity: 'CRITICAL',
@@ -28,7 +28,7 @@ export const missingTransactionsRule: Rule = {
       });
     }
 
-    for (const orphan of reader.orphanedLedgerEntries()) {
+    for (const orphan of await reader.orphanedLedgerEntries()) {
       findings.push({
         findingType: 'ORPHANED_GL_LEDGER_ENTRY',
         severity: 'CRITICAL',
@@ -43,7 +43,7 @@ export const missingTransactionsRule: Rule = {
       });
     }
 
-    for (const orphan of reader.orphanedWithdrawalRecords()) {
+    for (const orphan of await reader.orphanedWithdrawalRecords()) {
       findings.push({
         findingType: 'ORPHANED_WITHDRAWAL_RECORD',
         severity: 'CRITICAL',

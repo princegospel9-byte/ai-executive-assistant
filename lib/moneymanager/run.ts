@@ -125,7 +125,7 @@ export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMoni
     // lib/moneymanager/classification/classify.ts's file header for the
     // anti-fabrication rules this ordering enforces.
     const runMetadata: RunMetadata = {
-      moneyManagerDataAsOf: reader.dataAsOfDate(),
+      moneyManagerDataAsOf: await reader.dataAsOfDate(),
       officeRecordsConfigured: (opts.officeRecordsConfig ?? OFFICE_RECORDS_NOT_CONFIGURED).configured,
       officeRecordsReportingPeriod: opts.officeRecordsDateRange ?? null,
     };
@@ -143,7 +143,7 @@ export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMoni
     await opts.persistence.recordCheckpoint({
       userId: opts.userId,
       snapshotIdentifier,
-      tableCounts: reader.tableCounts(),
+      tableCounts: await reader.tableCounts(),
       runId,
     });
 

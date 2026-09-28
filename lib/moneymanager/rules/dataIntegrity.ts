@@ -9,10 +9,10 @@ import type { Finding, Rule } from './types';
 export const dataIntegrityRule: Rule = {
   ruleId: 'mm.data_integrity.v1',
   description: 'Implausible entry dates and zero-amount ledger postings.',
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
 
-    for (const row of reader.allEntryDates()) {
+    for (const row of await reader.allEntryDates()) {
       if (isImplausibleDate(row.entryDate)) {
         findings.push({
           findingType: 'IMPLAUSIBLE_ENTRY_DATE',
@@ -29,7 +29,7 @@ export const dataIntegrityRule: Rule = {
       }
     }
 
-    for (const row of reader.zeroAmountEntries()) {
+    for (const row of await reader.zeroAmountEntries()) {
       findings.push({
         findingType: 'ZERO_AMOUNT_LEDGER_ENTRY',
         severity: 'INFO',

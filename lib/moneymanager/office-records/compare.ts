@@ -80,11 +80,11 @@ export async function runOfficeRecordsComparison(
   const officeCashOut = parseCashOutSheet(cashOutRows, dateFrom, dateTo);
 
   // ---- App-side data ----
-  const appZoneRows = reader.zoneCollectionsByDate(dateFrom, dateTo);
+  const appZoneRows = await reader.zoneCollectionsByDate(dateFrom, dateTo);
   const appZoneMinorByZoneDate = new Map<string, number>();
   for (const r of appZoneRows) appZoneMinorByZoneDate.set(`${r.zoneName}|${r.entryDate}`, r.amountMinor);
 
-  const appWithdrawalRows = reader.withdrawalsForMatching(dateFrom, dateTo);
+  const appWithdrawalRows = await reader.withdrawalsForMatching(dateFrom, dateTo);
   const appWithdrawalsByDate = new Map<
     string,
     { customerName: string; amountMinor: number; commissionMinor: number; hasStructuredRecord: boolean }[]

@@ -56,13 +56,13 @@ describe('SnapshotReader fail-safe behavior', () => {
     assert.ok((error as SnapshotIncompleteError).reason.includes('customer_ledger_entries.voided_at'));
   });
 
-  it('opens successfully and reports table counts when the schema is complete', () => {
+  it('opens successfully and reports table counts when the schema is complete', async () => {
     const fixture = buildFixtureDb((db) => {
       db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
     });
 
     const reader = SnapshotReader.open(fixture.path);
-    const counts = reader.tableCounts();
+    const counts = await reader.tableCounts();
     reader.close();
     fixture.close();
 
@@ -72,7 +72,7 @@ describe('SnapshotReader fail-safe behavior', () => {
 });
 
 describe('SnapshotReader.dataAsOfDate (Phase 4A - the source-agnostic "as of" date classify.ts depends on)', () => {
-  it('returns the latest plausible entry_date across customer_ledger_entries', () => {
+  it('returns the latest plausible entry_date across customer_ledger_entries', async () => {
     const fixture = buildFixtureDb((db) => {
       db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
       db.exec(`insert into customer_accounts values (1, 1, 1, '1000000001', 'A B', 'Random', 500, 'ACTIVE', 0)`);
@@ -90,14 +90,14 @@ describe('SnapshotReader.dataAsOfDate (Phase 4A - the source-agnostic "as of" da
       );
     });
     const reader = SnapshotReader.open(fixture.path);
-    const asOf = reader.dataAsOfDate();
+    const asOf = await reader.dataAsOfDate();
     reader.close();
     fixture.close();
 
     assert.strictEqual(asOf, '2026-09-22');
   });
 
-  it('excludes implausible/corrupted dates rather than letting one poison the result (real snapshot has one exactly like this: "0202-03-06")', () => {
+  it('excludes implausible/corrupted dates rather than letting one poison the result (real snapshot has one exactly like this: "0202-03-06")', async () => {
     const fixture = buildFixtureDb((db) => {
       db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
       db.exec(`insert into customer_accounts values (1, 1, 1, '1000000001', 'A B', 'Random', 500, 'ACTIVE', 0)`);
@@ -113,14 +113,14 @@ describe('SnapshotReader.dataAsOfDate (Phase 4A - the source-agnostic "as of" da
       );
     });
     const reader = SnapshotReader.open(fixture.path);
-    const asOf = reader.dataAsOfDate();
+    const asOf = await reader.dataAsOfDate();
     reader.close();
     fixture.close();
 
     assert.strictEqual(asOf, '2026-09-15');
   });
 
-  it('returns null (never a best-guess date) when there is no plausible date at all', () => {
+  it('returns null (never a best-guess date) when there is no plausible date at all', async () => {
     const fixture = buildFixtureDb((db) => {
       db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
       db.exec(`insert into customer_accounts values (1, 1, 1, '1000000001', 'A B', 'Random', 500, 'ACTIVE', 0)`);
@@ -130,19 +130,19 @@ describe('SnapshotReader.dataAsOfDate (Phase 4A - the source-agnostic "as of" da
       );
     });
     const reader = SnapshotReader.open(fixture.path);
-    const asOf = reader.dataAsOfDate();
+    const asOf = await reader.dataAsOfDate();
     reader.close();
     fixture.close();
 
     assert.strictEqual(asOf, null);
   });
 
-  it('returns null when customer_ledger_entries is empty', () => {
+  it('returns null when customer_ledger_entries is empty', async () => {
     const fixture = buildFixtureDb((db) => {
       db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
     });
     const reader = SnapshotReader.open(fixture.path);
-    const asOf = reader.dataAsOfDate();
+    const asOf = await reader.dataAsOfDate();
     reader.close();
     fixture.close();
 

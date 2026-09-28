@@ -8,9 +8,9 @@ export const balanceReconciliationRule: Rule = {
   ruleId: 'mm.balance_reconciliation.v1',
   description:
     "Customer account's current_balance_minor vs the balance on its latest ledger entry.",
-  run: ({ reader }) => {
-    const accounts = reader.customerAccounts();
-    const latestByAccount = reader.latestLedgerBalancePerAccount();
+  run: async ({ reader }) => {
+    const accounts = await reader.customerAccounts();
+    const latestByAccount = await reader.latestLedgerBalancePerAccount();
     const findings: Finding[] = [];
 
     for (const account of accounts) {

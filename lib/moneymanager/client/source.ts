@@ -1,12 +1,26 @@
 // The data-query contract every MoneyManager source must implement. Rules
 // (lib/moneymanager/rules/*.ts) depend on THIS interface, not on
 // SnapshotReader concretely - so a rule written today keeps working
-// unchanged when a second source is added later (see WebApiSource below).
+// (aside from adding `await`, see Phase 4B below) when a second source is
+// added later (see WebApiSourceStub below).
 //
 // This is deliberately just an extraction of SnapshotReader's existing
 // public query surface (lib/moneymanager/client/snapshot.ts) - not a
 // redesign. SnapshotReader already satisfies this structurally; the
 // `implements` clause on it is the only place that needed to change.
+//
+// Phase 4B: every query method is now async (`Promise<T>`), not just
+// zoneCollectionsByDate/withdrawalsForMatching's future callers. This is
+// the "option 1" design from the Phase 4 desktop-LAN investigation report:
+// a live HTTP-backed source (desktop-LAN or web/VPS, still NOT built this
+// phase) needs to make a real network request per method, which can't be
+// synchronous - so the interface itself must be async, even though
+// SnapshotReader's own underlying sqlite reads stay perfectly synchronous
+// internally (see snapshot.ts - it just wraps each already-sync read in an
+// `async` method, no behavior change, no added latency). `close()` is the
+// one exception, kept synchronous: it's local resource cleanup (closing a
+// db handle, or a no-op for an HTTP client), never itself an async fetch,
+// matching the WebApiSourceStub example below.
 import type {
   CustomerAccount,
   Branch,
@@ -19,12 +33,12 @@ import type {
 } from './types';
 
 export interface MoneyManagerSource {
-  tableCounts(): Record<string, number>;
-  branches(): Branch[];
-  glAccounts(): GlAccount[];
-  customerAccounts(): CustomerAccount[];
-  latestLedgerBalancePerAccount(): Map<number, { entryId: number; balanceMinor: number; entryDate: string }>;
-  duplicateCustomerLedgerGroups(): {
+  tableCounts(): Promise<Record<string, number>>;
+  branches(): Promise<Branch[]>;
+  glAccounts(): Promise<GlAccount[]>;
+  customerAccounts(): Promise<CustomerAccount[]>;
+  latestLedgerBalancePerAccount(): Promise<Map<number, { entryId: number; balanceMinor: number; entryDate: string }>>;
+  duplicateCustomerLedgerGroups(): Promise<{
     customerAccountId: number;
     entryDate: string;
     drMinor: number;
@@ -32,47 +46,47 @@ export interface MoneyManagerSource {
     details: string | null;
     count: number;
     entryIds: number[];
-  }[];
-  duplicateReceiptNumbers(): { receiptNo: string; count: number; entryIds: number[] }[];
-  orphanedCustomerLedgerEntries(): { id: number; customerAccountId: number; entryDate: string }[];
-  orphanedLedgerEntries(): { id: number; glAccountId: number; entryDate: string }[];
-  orphanedWithdrawalRecords(): { customerLedgerEntryId: number; customerAccountId: number }[];
-  withdrawalRecordsWithLedgerEntry(): {
+  }[]>;
+  duplicateReceiptNumbers(): Promise<{ receiptNo: string; count: number; entryIds: number[] }[]>;
+  orphanedCustomerLedgerEntries(): Promise<{ id: number; customerAccountId: number; entryDate: string }[]>;
+  orphanedLedgerEntries(): Promise<{ id: number; glAccountId: number; entryDate: string }[]>;
+  orphanedWithdrawalRecords(): Promise<{ customerLedgerEntryId: number; customerAccountId: number }[]>;
+  withdrawalRecordsWithLedgerEntry(): Promise<{
     record: WithdrawalRecord;
     ledgerEntry: { drMinor: number; crMinor: number; balanceMinor: number } | null;
-  }[];
-  glAccountMovementTotals(): Map<number, { drMinor: number; crMinor: number }>;
-  ledgerBatchTotals(): { batchNo: string; drMinor: number; crMinor: number; entryCount: number }[];
-  ledgerTotals(): { drMinor: number; crMinor: number };
-  dailyDepositTotals(): {
+  }[]>;
+  glAccountMovementTotals(): Promise<Map<number, { drMinor: number; crMinor: number }>>;
+  ledgerBatchTotals(): Promise<{ batchNo: string; drMinor: number; crMinor: number; entryCount: number }[]>;
+  ledgerTotals(): Promise<{ drMinor: number; crMinor: number }>;
+  dailyDepositTotals(): Promise<{
     date: string;
     customerLedgerDepositsMinor: number;
     vaultDepositMovementMinor: number;
-  }[];
-  allEntryDates(): { table: string; id: number; entryDate: string }[];
-  zeroAmountEntries(): { id: number; customerAccountId: number; entryDate: string }[];
-  loans(): Loan[];
-  investments(): Investment[];
-  fieldSurveyChecks(): FieldSurveyCheck[];
-  passbookChecks(): PassbookCheck[];
+  }[]>;
+  allEntryDates(): Promise<{ table: string; id: number; entryDate: string }[]>;
+  zeroAmountEntries(): Promise<{ id: number; customerAccountId: number; entryDate: string }[]>;
+  loans(): Promise<Loan[]>;
+  investments(): Promise<Investment[]>;
+  fieldSurveyChecks(): Promise<FieldSurveyCheck[]>;
+  passbookChecks(): Promise<PassbookCheck[]>;
   /** Zone-and-day deposit + card-sale-cash totals, for "Compare with Office
    * Records" zone-sheet matching. Mirrors moneymanager-standalone-src/src/
    * data/office-records-comparison.repository.ts's getZoneCollectionsByDate
    * exactly (see lib/moneymanager/office-records/compare.ts). */
-  zoneCollectionsByDate(dateFrom: string, dateTo: string): {
+  zoneCollectionsByDate(dateFrom: string, dateTo: string): Promise<{
     zoneName: string;
     entryDate: string;
     amountMinor: number;
-  }[];
+  }[]>;
   /** Withdrawal rows for office-sheet matching, in the same shape as
    * moneymanager-standalone-src's getWithdrawalsForMatching. */
-  withdrawalsForMatching(dateFrom: string, dateTo: string): {
+  withdrawalsForMatching(dateFrom: string, dateTo: string): Promise<{
     entryDate: string;
     customerName: string;
     amountMinor: number;
     commissionMinor: number;
     hasStructuredRecord: boolean;
-  }[];
+  }[]>;
   /** The latest business date this source's MoneyManager-side data actually
    * covers, as an ISO 'YYYY-MM-DD' string - the "as of" date the Phase 4A
    * classification layer (lib/moneymanager/classification/) uses to tell a
@@ -87,7 +101,10 @@ export interface MoneyManagerSource {
    * adapter produced it. Returns null only if no plausible business date
    * can be determined at all (never a best-guess/implausible date - see
    * SnapshotReader's implementation for how it excludes corrupted rows). */
-  dataAsOfDate(): string | null;
+  dataAsOfDate(): Promise<string | null>;
+  /** Local resource cleanup only (closing a db handle, or a no-op for an
+   * HTTP client) - never itself a network fetch, so this stays synchronous
+   * even though every data-query method above is async. */
   close(): void;
 }
 
@@ -130,12 +147,12 @@ export interface MoneyManagerSource {
  *     close() {} // no persistent handle to release for an HTTP client
  *   }
  *
- * Not defined as a real interface/class yet because every method on
- * MoneyManagerSource is currently synchronous (matching SnapshotReader's
- * synchronous sqlite reads) - an HTTP-backed adapter's methods would need
- * to be async, which changes every rule's call site. That's a real,
- * deliberate Phase 4 decision (async MoneyManagerSource vs. a sync facade
- * that awaits eagerly before invoking rules), not something to guess at
- * here.
+ * Still not implemented as a real class this phase - only the interface
+ * conversion (Phase 4B) that a real HTTP-backed adapter needs was done:
+ * MoneyManagerSource is now fully async (see the interface above), so a
+ * future WebApiSource/LanApiSource can make a genuine per-method network
+ * request without any further interface change. No network code, no
+ * credentials, no live connection was added this phase - only the
+ * plumbing that a future adapter will need already being in place.
  */
 export type WebApiSourceStub = never;

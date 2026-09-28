@@ -16,11 +16,11 @@ export const loanInvestmentConsistencyRule: Rule = {
   description:
     'Loans/investments referencing a nonexistent customer_account_id. Deeper schedule/repayment ' +
     'reconciliation is deferred - see documentation/moneymanager-monitoring.md limitations.',
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
-    const accountIds = new Set(reader.customerAccounts().map((a) => a.id));
+    const accountIds = new Set((await reader.customerAccounts()).map((a) => a.id));
 
-    for (const loan of reader.loans()) {
+    for (const loan of await reader.loans()) {
       if (!accountIds.has(loan.customerAccountId)) {
         findings.push({
           findingType: 'LOAN_ORPHANED_CUSTOMER_ACCOUNT',
@@ -37,7 +37,7 @@ export const loanInvestmentConsistencyRule: Rule = {
       }
     }
 
-    for (const investment of reader.investments()) {
+    for (const investment of await reader.investments()) {
       if (!accountIds.has(investment.customerAccountId)) {
         findings.push({
           findingType: 'INVESTMENT_ORPHANED_CUSTOMER_ACCOUNT',

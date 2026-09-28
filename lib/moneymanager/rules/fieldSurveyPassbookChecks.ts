@@ -36,10 +36,10 @@ export const fieldSurveyPassbookChecksRule: Rule = {
     'field_survey_checks (systematic survey) and open passbook_checks (withdrawal-time spot checks) - ' +
     "passbook (field-verified) balance vs system balance. NOT MoneyManager's real 'Compare with Office " +
     "Records' feature - see officeRecordsComparison.ts for that.",
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
 
-    for (const check of reader.fieldSurveyChecks()) {
+    for (const check of await reader.fieldSurveyChecks()) {
       if (check.status !== 'MISMATCH') continue;
 
       const isOverage = check.differenceMinor > 0; // system claims MORE than the passbook
@@ -65,7 +65,7 @@ export const fieldSurveyPassbookChecksRule: Rule = {
       });
     }
 
-    for (const check of reader.passbookChecks()) {
+    for (const check of await reader.passbookChecks()) {
       if (check.status !== 'OPEN' || check.differenceMinor === 0) continue;
 
       findings.push({

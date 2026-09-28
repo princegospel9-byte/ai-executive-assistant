@@ -9,10 +9,10 @@ import type { Finding, Rule } from './types';
 export const vaultReconciliationRule: Rule = {
   ruleId: 'mm.vault_reconciliation.v1',
   description: "Per-branch Vault GL account (10001) stored balance vs computed movement total.",
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
-    const glAccounts = reader.glAccounts();
-    const movements = reader.glAccountMovementTotals();
+    const glAccounts = await reader.glAccounts();
+    const movements = await reader.glAccountMovementTotals();
 
     const vaultAccounts = glAccounts.filter((g) => g.accountCode === VAULT_ACCOUNT_CODE);
 

@@ -8,10 +8,10 @@ import type { Finding, Rule } from './types';
 export const duplicateTransactionsRule: Rule = {
   ruleId: 'mm.duplicate_transactions.v1',
   description: 'Detects repeated customer ledger postings and reused receipt numbers.',
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
 
-    for (const group of reader.duplicateCustomerLedgerGroups()) {
+    for (const group of await reader.duplicateCustomerLedgerGroups()) {
       findings.push({
         findingType: 'DUPLICATE_LEDGER_ENTRY_GROUP',
         severity: group.count > 2 ? 'CRITICAL' : 'HIGH',
@@ -31,7 +31,7 @@ export const duplicateTransactionsRule: Rule = {
       });
     }
 
-    for (const dup of reader.duplicateReceiptNumbers()) {
+    for (const dup of await reader.duplicateReceiptNumbers()) {
       findings.push({
         findingType: 'DUPLICATE_RECEIPT_NUMBER',
         severity: 'HIGH',

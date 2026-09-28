@@ -126,7 +126,7 @@ export class SnapshotReader implements MoneyManagerSource {
    * checkpoint fingerprint (mm_sync_checkpoints) to detect whether the
    * snapshot changed between runs. Not a substitute for a content hash,
    * but enough to tell "nothing changed" from "something changed". */
-  tableCounts(): Record<string, number> {
+  async tableCounts(): Promise<Record<string, number>> {
     const counts: Record<string, number> = {};
     for (const table of Object.keys(EXPECTED_SCHEMA)) {
       counts[table] = (this.db.prepare(`select count(*) as c from ${table}`).get() as { c: number })
@@ -135,13 +135,13 @@ export class SnapshotReader implements MoneyManagerSource {
     return counts;
   }
 
-  branches(): Branch[] {
+  async branches(): Promise<Branch[]> {
     return (this.db.prepare('select id, code, name from branches').all() as Record<string, unknown>[]).map(
       (r) => ({ id: r.id as number, code: r.code as string, name: r.name as string })
     );
   }
 
-  glAccounts(): GlAccount[] {
+  async glAccounts(): Promise<GlAccount[]> {
     return (
       this.db
         .prepare(
@@ -158,7 +158,7 @@ export class SnapshotReader implements MoneyManagerSource {
     }));
   }
 
-  customerAccounts(): CustomerAccount[] {
+  async customerAccounts(): Promise<CustomerAccount[]> {
     return (
       this.db
         .prepare(
@@ -184,7 +184,7 @@ export class SnapshotReader implements MoneyManagerSource {
    * balance MoneyManager's own ledger claims for that account, used by
    * balance reconciliation. Computed in SQL, not by pulling all 600k+ rows
    * into JS, because customer_ledger_entries is large. */
-  latestLedgerBalancePerAccount(): Map<number, { entryId: number; balanceMinor: number; entryDate: string }> {
+  async latestLedgerBalancePerAccount(): Promise<Map<number, { entryId: number; balanceMinor: number; entryDate: string }>> {
     const rows = this.db
       .prepare(
         `select cle.customer_account_id as customer_account_id,
@@ -218,7 +218,7 @@ export class SnapshotReader implements MoneyManagerSource {
    * entry_date, dr_minor, cr_minor, details) more than once, excluding
    * voided entries. Returns one row per duplicate group with the count and
    * the list of colliding entry ids. */
-  duplicateCustomerLedgerGroups(): {
+  async duplicateCustomerLedgerGroups(): Promise<{
     customerAccountId: number;
     entryDate: string;
     drMinor: number;
@@ -226,7 +226,7 @@ export class SnapshotReader implements MoneyManagerSource {
     details: string | null;
     count: number;
     entryIds: number[];
-  }[] {
+  }[]> {
     const rows = this.db
       .prepare(
         `select customer_account_id, entry_date, dr_minor, cr_minor, details,
@@ -253,7 +253,7 @@ export class SnapshotReader implements MoneyManagerSource {
 
   /** Duplicate receipt numbers reused across more than one ledger entry -
    * receipt_no is meant to be a unique physical receipt reference. */
-  duplicateReceiptNumbers(): { receiptNo: string; count: number; entryIds: number[] }[] {
+  async duplicateReceiptNumbers(): Promise<{ receiptNo: string; count: number; entryIds: number[] }[]> {
     const rows = this.db
       .prepare(
         `select receipt_no, count(*) as cnt, group_concat(id) as ids
@@ -275,7 +275,7 @@ export class SnapshotReader implements MoneyManagerSource {
 
   /** customer_ledger_entries whose customer_account_id has no matching row
    * in customer_accounts - an orphaned foreign key. */
-  orphanedCustomerLedgerEntries(): { id: number; customerAccountId: number; entryDate: string }[] {
+  async orphanedCustomerLedgerEntries(): Promise<{ id: number; customerAccountId: number; entryDate: string }[]> {
     const rows = this.db
       .prepare(
         `select cle.id as id, cle.customer_account_id as customer_account_id, cle.entry_date as entry_date
@@ -292,7 +292,7 @@ export class SnapshotReader implements MoneyManagerSource {
   }
 
   /** ledger_entries whose gl_account_id has no matching row in gl_accounts. */
-  orphanedLedgerEntries(): { id: number; glAccountId: number; entryDate: string }[] {
+  async orphanedLedgerEntries(): Promise<{ id: number; glAccountId: number; entryDate: string }[]> {
     const rows = this.db
       .prepare(
         `select le.id as id, le.gl_account_id as gl_account_id, le.entry_date as entry_date
@@ -310,7 +310,7 @@ export class SnapshotReader implements MoneyManagerSource {
 
   /** withdrawal_records whose customer_ledger_entry_id doesn't exist in
    * customer_ledger_entries - the withdrawal has no backing ledger posting. */
-  orphanedWithdrawalRecords(): { customerLedgerEntryId: number; customerAccountId: number }[] {
+  async orphanedWithdrawalRecords(): Promise<{ customerLedgerEntryId: number; customerAccountId: number }[]> {
     const rows = this.db
       .prepare(
         `select wr.customer_ledger_entry_id as customer_ledger_entry_id, wr.customer_account_id as customer_account_id
@@ -327,10 +327,10 @@ export class SnapshotReader implements MoneyManagerSource {
 
   /** All withdrawal_records joined to their backing ledger entry (only
    * rows with a valid link - orphans are reported separately). */
-  withdrawalRecordsWithLedgerEntry(): {
+  async withdrawalRecordsWithLedgerEntry(): Promise<{
     record: WithdrawalRecord;
     ledgerEntry: { drMinor: number; crMinor: number; balanceMinor: number } | null;
-  }[] {
+  }[]> {
     const rows = this.db
       .prepare(
         `select wr.customer_ledger_entry_id as customer_ledger_entry_id,
@@ -375,7 +375,7 @@ export class SnapshotReader implements MoneyManagerSource {
     }));
   }
 
-  glAccountMovementTotals(): Map<number, { drMinor: number; crMinor: number }> {
+  async glAccountMovementTotals(): Promise<Map<number, { drMinor: number; crMinor: number }>> {
     const rows = this.db
       .prepare(
         `select gl_account_id, sum(dr_minor) as dr, sum(cr_minor) as cr
@@ -396,7 +396,7 @@ export class SnapshotReader implements MoneyManagerSource {
   /** Per-batch dr/cr totals in ledger_entries - each batch_no is meant to
    * represent one balanced double-entry transaction (dr total == cr total).
    * Rows with a null batch_no are excluded (nothing to group them by). */
-  ledgerBatchTotals(): { batchNo: string; drMinor: number; crMinor: number; entryCount: number }[] {
+  async ledgerBatchTotals(): Promise<{ batchNo: string; drMinor: number; crMinor: number; entryCount: number }[]> {
     const rows = this.db
       .prepare(
         `select batch_no, sum(dr_minor) as dr, sum(cr_minor) as cr, count(*) as cnt
@@ -413,7 +413,7 @@ export class SnapshotReader implements MoneyManagerSource {
     }));
   }
 
-  ledgerTotals(): { drMinor: number; crMinor: number } {
+  async ledgerTotals(): Promise<{ drMinor: number; crMinor: number }> {
     const r = this.db
       .prepare('select sum(dr_minor) as dr, sum(cr_minor) as cr from ledger_entries')
       .get() as Record<string, unknown>;
@@ -422,11 +422,11 @@ export class SnapshotReader implements MoneyManagerSource {
 
   /** Daily customer DEPOSIT totals from customer_ledger_entries vs daily
    * DEPOSIT-sourced Vault movement totals from ledger_entries, per date. */
-  dailyDepositTotals(): {
+  async dailyDepositTotals(): Promise<{
     date: string;
     customerLedgerDepositsMinor: number;
     vaultDepositMovementMinor: number;
-  }[] {
+  }[]> {
     const customerSide = this.db
       .prepare(
         `select date(entry_date) as d, sum(cr_minor) as total
@@ -465,7 +465,7 @@ export class SnapshotReader implements MoneyManagerSource {
 
   /** Raw entry_date strings across the two ledger tables, for basic date
    * sanity checks (malformed / out-of-range values). */
-  allEntryDates(): { table: string; id: number; entryDate: string }[] {
+  async allEntryDates(): Promise<{ table: string; id: number; entryDate: string }[]> {
     const cle = this.db
       .prepare('select id, entry_date from customer_ledger_entries')
       .all() as Record<string, unknown>[];
@@ -481,7 +481,7 @@ export class SnapshotReader implements MoneyManagerSource {
 
   /** customer_ledger_entries with null/zero on both dr_minor and cr_minor
    * for a non-void entry - a transaction that moved no money at all. */
-  zeroAmountEntries(): { id: number; customerAccountId: number; entryDate: string }[] {
+  async zeroAmountEntries(): Promise<{ id: number; customerAccountId: number; entryDate: string }[]> {
     const rows = this.db
       .prepare(
         `select id, customer_account_id, entry_date
@@ -496,7 +496,7 @@ export class SnapshotReader implements MoneyManagerSource {
     }));
   }
 
-  loans(): Loan[] {
+  async loans(): Promise<Loan[]> {
     return (
       this.db
         .prepare('select id, loan_ref, customer_account_id, principal_minor, status from loans')
@@ -510,7 +510,7 @@ export class SnapshotReader implements MoneyManagerSource {
     }));
   }
 
-  investments(): Investment[] {
+  async investments(): Promise<Investment[]> {
     return (
       this.db
         .prepare(
@@ -531,7 +531,7 @@ export class SnapshotReader implements MoneyManagerSource {
    * mm-server-actual/src/business/field-survey/get-field-survey-report.ts
    * and lib/moneymanager/rules/savingsCompareWithOfficeRecords.ts. Only 217
    * rows in the reference snapshot - cheap to read in full. */
-  fieldSurveyChecks(): FieldSurveyCheck[] {
+  async fieldSurveyChecks(): Promise<FieldSurveyCheck[]> {
     return (
       this.db
         .prepare(
@@ -556,7 +556,7 @@ export class SnapshotReader implements MoneyManagerSource {
    * workflow - the other half of "Compare with Office Records" (see
    * mm-server-actual/src/business/passbook-checks/). Only 46 rows in the
    * reference snapshot. */
-  passbookChecks(): PassbookCheck[] {
+  async passbookChecks(): Promise<PassbookCheck[]> {
     return (
       this.db
         .prepare(
@@ -582,10 +582,10 @@ export class SnapshotReader implements MoneyManagerSource {
    * collected in the field alongside deposits and the office's own zone
    * sheets include it in the same total, so CARD FEE CASH must be summed
    * in here too or every zone diff looks wrong by that amount. */
-  zoneCollectionsByDate(
+  async zoneCollectionsByDate(
     dateFrom: string,
     dateTo: string
-  ): { zoneName: string; entryDate: string; amountMinor: number }[] {
+  ): Promise<{ zoneName: string; entryDate: string; amountMinor: number }[]> {
     const rows = this.db
       .prepare(
         `select z.name as zone_name, substr(cle.entry_date, 1, 10) as entry_date,
@@ -615,16 +615,16 @@ export class SnapshotReader implements MoneyManagerSource {
    * principal (withdrawal_records.amount_minor) when it exists, falling
    * back to the raw ledger amount only for legacy rows with no
    * withdrawal_records row at all. */
-  withdrawalsForMatching(
+  async withdrawalsForMatching(
     dateFrom: string,
     dateTo: string
-  ): {
+  ): Promise<{
     entryDate: string;
     customerName: string;
     amountMinor: number;
     commissionMinor: number;
     hasStructuredRecord: boolean;
-  }[] {
+  }[]> {
     const rows = this.db
       .prepare(
         `select substr(cle.entry_date, 1, 10) as entry_date, cu.full_name as customer_name,
@@ -659,7 +659,7 @@ export class SnapshotReader implements MoneyManagerSource {
    * snapshot contains) - scans at most 200 rows via SQL ORDER BY/LIMIT
    * rather than the full 678k-row table. Returns null (never a best-guess
    * date) if no plausible date is found in that scan at all. */
-  dataAsOfDate(): string | null {
+  async dataAsOfDate(): Promise<string | null> {
     const rows = this.db
       .prepare('select entry_date from customer_ledger_entries order by entry_date desc limit 200')
       .all() as { entry_date: string }[];

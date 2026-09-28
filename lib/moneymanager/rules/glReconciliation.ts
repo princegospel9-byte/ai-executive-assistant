@@ -11,10 +11,10 @@ const DEBIT_NATURE = new Set(['ASSET', 'EXPENSE']);
 export const glReconciliationRule: Rule = {
   ruleId: 'mm.gl_reconciliation.v1',
   description: 'Debits vs credits balance globally, per batch, and per GL account.',
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
 
-    const totals = reader.ledgerTotals();
+    const totals = await reader.ledgerTotals();
     const globalVariance = totals.drMinor - totals.crMinor;
     if (globalVariance !== 0) {
       findings.push({
@@ -31,7 +31,7 @@ export const glReconciliationRule: Rule = {
       });
     }
 
-    for (const batch of reader.ledgerBatchTotals()) {
+    for (const batch of await reader.ledgerBatchTotals()) {
       const variance = batch.drMinor - batch.crMinor;
       if (variance !== 0) {
         findings.push({
@@ -49,8 +49,8 @@ export const glReconciliationRule: Rule = {
       }
     }
 
-    const movements = reader.glAccountMovementTotals();
-    for (const account of reader.glAccounts()) {
+    const movements = await reader.glAccountMovementTotals();
+    for (const account of await reader.glAccounts()) {
       const movement = movements.get(account.id) ?? { drMinor: 0, crMinor: 0 };
       const computedBalance = DEBIT_NATURE.has(account.category)
         ? movement.drMinor - movement.crMinor

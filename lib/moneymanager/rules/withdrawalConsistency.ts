@@ -14,10 +14,10 @@ import type { Finding, Rule } from './types';
 export const withdrawalConsistencyRule: Rule = {
   ruleId: 'mm.withdrawal_consistency.v1',
   description: 'withdrawal_records amounts/balances vs their backing ledger entry and passbook figure.',
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
 
-    for (const { record, ledgerEntry } of reader.withdrawalRecordsWithLedgerEntry()) {
+    for (const { record, ledgerEntry } of await reader.withdrawalRecordsWithLedgerEntry()) {
       if (!ledgerEntry) {
         // Already reported as ORPHANED_WITHDRAWAL_RECORD by
         // mm.missing_transactions.v1 - skip to avoid a duplicate finding

@@ -9,10 +9,10 @@ import type { Finding, Rule } from './types';
 export const dailyTotalsRule: Rule = {
   ruleId: 'mm.daily_totals.v1',
   description: 'Daily customer-ledger DEPOSIT totals vs Vault-side DEPOSIT GL movement totals.',
-  run: ({ reader }) => {
+  run: async ({ reader }) => {
     const findings: Finding[] = [];
 
-    for (const day of reader.dailyDepositTotals()) {
+    for (const day of await reader.dailyDepositTotals()) {
       const variance = day.customerLedgerDepositsMinor - day.vaultDepositMovementMinor;
       if (variance !== 0) {
         findings.push({
