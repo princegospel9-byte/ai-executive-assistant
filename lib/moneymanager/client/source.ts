@@ -73,6 +73,21 @@ export interface MoneyManagerSource {
     commissionMinor: number;
     hasStructuredRecord: boolean;
   }[];
+  /** The latest business date this source's MoneyManager-side data actually
+   * covers, as an ISO 'YYYY-MM-DD' string - the "as of" date the Phase 4A
+   * classification layer (lib/moneymanager/classification/) uses to tell a
+   * real discrepancy apart from a comparison that only looks wrong because
+   * this source's data simply doesn't reach that far yet (e.g. a stale
+   * offline snapshot exported days before "today"). Deliberately part of
+   * the shared interface, not a SnapshotReader-only concept: a live
+   * desktop-LAN or web/VPS adapter (not built in this phase) would
+   * implement this too, typically returning something close to "now" since
+   * a live source has no export-time staleness - the classification logic
+   * that reads this value never needs to know or care which concrete
+   * adapter produced it. Returns null only if no plausible business date
+   * can be determined at all (never a best-guess/implausible date - see
+   * SnapshotReader's implementation for how it excludes corrupted rows). */
+  dataAsOfDate(): string | null;
   close(): void;
 }
 

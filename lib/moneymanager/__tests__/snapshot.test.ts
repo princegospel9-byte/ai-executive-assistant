@@ -70,3 +70,82 @@ describe('SnapshotReader fail-safe behavior', () => {
     assert.strictEqual(counts.customer_accounts, 0);
   });
 });
+
+describe('SnapshotReader.dataAsOfDate (Phase 4A - the source-agnostic "as of" date classify.ts depends on)', () => {
+  it('returns the latest plausible entry_date across customer_ledger_entries', () => {
+    const fixture = buildFixtureDb((db) => {
+      db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
+      db.exec(`insert into customer_accounts values (1, 1, 1, '1000000001', 'A B', 'Random', 500, 'ACTIVE', 0)`);
+      db.exec(
+        `insert into customer_ledger_entries values
+         (1, 1, 1, '2026-09-10', 'RCT-0001', 'r1', 'DEPOSIT', 0, 100, 100, 'DEPOSIT', 'b1', null)`
+      );
+      db.exec(
+        `insert into customer_ledger_entries values
+         (2, 1, 1, '2026-09-22', 'RCT-0002', 'r2', 'DEPOSIT', 0, 100, 200, 'DEPOSIT', 'b2', null)`
+      );
+      db.exec(
+        `insert into customer_ledger_entries values
+         (3, 1, 1, '2026-09-15', 'RCT-0003', 'r3', 'DEPOSIT', 0, 100, 300, 'DEPOSIT', 'b3', null)`
+      );
+    });
+    const reader = SnapshotReader.open(fixture.path);
+    const asOf = reader.dataAsOfDate();
+    reader.close();
+    fixture.close();
+
+    assert.strictEqual(asOf, '2026-09-22');
+  });
+
+  it('excludes implausible/corrupted dates rather than letting one poison the result (real snapshot has one exactly like this: "0202-03-06")', () => {
+    const fixture = buildFixtureDb((db) => {
+      db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
+      db.exec(`insert into customer_accounts values (1, 1, 1, '1000000001', 'A B', 'Random', 500, 'ACTIVE', 0)`);
+      db.exec(
+        `insert into customer_ledger_entries values
+         (1, 1, 1, '2026-09-15', 'RCT-0001', 'r1', 'DEPOSIT', 0, 100, 100, 'DEPOSIT', 'b1', null)`
+      );
+      // A corrupted future-looking date that would otherwise sort as the
+      // "latest" by plain string ordering - must be excluded.
+      db.exec(
+        `insert into customer_ledger_entries values
+         (2, 1, 1, '9999-01-01', 'RCT-0002', 'r2', 'DEPOSIT', 0, 100, 200, 'DEPOSIT', 'b2', null)`
+      );
+    });
+    const reader = SnapshotReader.open(fixture.path);
+    const asOf = reader.dataAsOfDate();
+    reader.close();
+    fixture.close();
+
+    assert.strictEqual(asOf, '2026-09-15');
+  });
+
+  it('returns null (never a best-guess date) when there is no plausible date at all', () => {
+    const fixture = buildFixtureDb((db) => {
+      db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
+      db.exec(`insert into customer_accounts values (1, 1, 1, '1000000001', 'A B', 'Random', 500, 'ACTIVE', 0)`);
+      db.exec(
+        `insert into customer_ledger_entries values
+         (1, 1, 1, '0202-03-06', 'RCT-0001', 'r1', 'DEPOSIT', 0, 100, 100, 'DEPOSIT', 'b1', null)`
+      );
+    });
+    const reader = SnapshotReader.open(fixture.path);
+    const asOf = reader.dataAsOfDate();
+    reader.close();
+    fixture.close();
+
+    assert.strictEqual(asOf, null);
+  });
+
+  it('returns null when customer_ledger_entries is empty', () => {
+    const fixture = buildFixtureDb((db) => {
+      db.exec(`insert into branches values (1, 'JACOL', 'Jacol Susu Enterprise')`);
+    });
+    const reader = SnapshotReader.open(fixture.path);
+    const asOf = reader.dataAsOfDate();
+    reader.close();
+    fixture.close();
+
+    assert.strictEqual(asOf, null);
+  });
+});

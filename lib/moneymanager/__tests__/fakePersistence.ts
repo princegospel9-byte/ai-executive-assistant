@@ -2,7 +2,7 @@
 // orchestration logic (run creation, finding dedup upsert, alert creation,
 // checkpointing, status transitions) can be exercised without a real
 // Supabase project.
-import type { Finding } from '../rules/types';
+import type { ClassifiedFinding } from '../classification/types';
 import type {
   CreateRunInput,
   FinishRunInput,
@@ -11,7 +11,7 @@ import type {
 
 export class FakePersistence implements MonitoringPersistence {
   runs = new Map<string, CreateRunInput & Partial<FinishRunInput>>();
-  findingsByDedupeKey = new Map<string, Finding & { dedupeKey: string; seenCount: number }>();
+  findingsByDedupeKey = new Map<string, ClassifiedFinding & { dedupeKey: string; seenCount: number }>();
   alertsByDedupeKey = new Map<string, { severity: string }>();
   checkpoints = new Map<string, { tableCounts: Record<string, number>; runId: string }>();
   private nextId = 1;
@@ -28,7 +28,7 @@ export class FakePersistence implements MonitoringPersistence {
     this.runs.set(input.runId, { ...existing, ...input });
   }
 
-  async upsertFindings(runId: string, _userId: string, findings: (Finding & { dedupeKey: string })[]) {
+  async upsertFindings(runId: string, _userId: string, findings: (ClassifiedFinding & { dedupeKey: string })[]) {
     let insertedCount = 0;
     let updatedCount = 0;
     for (const f of findings) {
@@ -44,7 +44,7 @@ export class FakePersistence implements MonitoringPersistence {
     return { insertedCount, updatedCount };
   }
 
-  async createAlertsForFindings(_userId: string, findings: (Finding & { dedupeKey: string })[]) {
+  async createAlertsForFindings(_userId: string, findings: (ClassifiedFinding & { dedupeKey: string })[]) {
     let createdCount = 0;
     for (const f of findings) {
       if ((f.severity === 'HIGH' || f.severity === 'CRITICAL') && !this.alertsByDedupeKey.has(f.dedupeKey)) {
@@ -69,7 +69,7 @@ export class FailingPersistence extends FakePersistence {
   async upsertFindings(
     runId: string,
     userId: string,
-    findings: (Finding & { dedupeKey: string })[]
+    findings: (ClassifiedFinding & { dedupeKey: string })[]
   ): Promise<{ insertedCount: number; updatedCount: number }> {
     void runId;
     void userId;

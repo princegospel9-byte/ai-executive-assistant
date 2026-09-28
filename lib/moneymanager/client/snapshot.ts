@@ -9,7 +9,7 @@
 // read" into "found nothing to report".
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, statSync } from 'node:fs';
-import { nextIsoDate } from '../shared/dates';
+import { isImplausibleDate, nextIsoDate } from '../shared/dates';
 import type { MoneyManagerSource } from './source';
 import {
   EXPECTED_SCHEMA,
@@ -647,6 +647,30 @@ export class SnapshotReader implements MoneyManagerSource {
       commissionMinor: (r.commission_minor as number) ?? 0,
       hasStructuredRecord: Boolean(r.has_structured_record),
     }));
+  }
+
+  /** The latest plausible business date customer_ledger_entries actually
+   * covers - see MoneyManagerSource.dataAsOfDate()'s doc comment for why
+   * this exists (Phase 4A classification: telling a real discrepancy apart
+   * from a comparison that only looks wrong because this snapshot's data
+   * doesn't reach that far). Orders by entry_date DESC and takes the first
+   * row whose date passes the same plausibility check dataIntegrity.ts
+   * uses (excluding corrupted rows like the real '0202-03-06' one this
+   * snapshot contains) - scans at most 200 rows via SQL ORDER BY/LIMIT
+   * rather than the full 678k-row table. Returns null (never a best-guess
+   * date) if no plausible date is found in that scan at all. */
+  dataAsOfDate(): string | null {
+    const rows = this.db
+      .prepare('select entry_date from customer_ledger_entries order by entry_date desc limit 200')
+      .all() as { entry_date: string }[];
+
+    for (const row of rows) {
+      const entryDate = row.entry_date;
+      if (entryDate && !isImplausibleDate(entryDate)) {
+        return entryDate.slice(0, 10);
+      }
+    }
+    return null;
   }
 
   close(): void {

@@ -3,20 +3,8 @@
 // sqlite DATE type), so a corrupted value like "0202-03-06" - which the
 // reference snapshot genuinely contains - parses as a Date object without
 // throwing, so it has to be caught by range-checking instead.
+import { isImplausibleDate } from '../shared/dates';
 import type { Finding, Rule } from './types';
-
-const MIN_PLAUSIBLE_YEAR = 2000;
-const MAX_PLAUSIBLE_YEAR = 2100;
-
-function isImplausibleDate(raw: string): boolean {
-  const yearMatch = /^(\d{1,4})-/.exec(raw);
-  if (!yearMatch) return true;
-  const year = Number(yearMatch[1]);
-  if (!Number.isFinite(year)) return true;
-  if (year < MIN_PLAUSIBLE_YEAR || year > MAX_PLAUSIBLE_YEAR) return true;
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime());
-}
 
 export const dataIntegrityRule: Rule = {
   ruleId: 'mm.data_integrity.v1',

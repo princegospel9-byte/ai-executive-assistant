@@ -10,7 +10,8 @@
 import { findingDedupeKey } from './dedupe';
 import { SnapshotIncompleteError, SnapshotReader } from './client/snapshot';
 import { runAllRules } from './rules';
-import type { Finding } from './rules/types';
+import { classifyFindings } from './classification/classify';
+import type { ClassifiedFinding, RunMetadata } from './classification/types';
 import type { MonitoringPersistence } from './persistence/types';
 import { OFFICE_RECORDS_NOT_CONFIGURED, type OfficeRecordsConfigResult } from './office-records/config';
 
@@ -46,7 +47,11 @@ export type RunMonitoringOptions = {
 export type RunMonitoringResult = {
   runId: string;
   status: 'completed' | 'incomplete' | 'failed';
-  findings: Finding[];
+  /** Classified findings (Phase 4A) - every finding carries a deterministic
+   * `classification` (null only for the office-records summary rollup) and
+   * `classificationReason`, computed by lib/moneymanager/classification/
+   * classify.ts BEFORE any AI step ever sees them. */
+  findings: ClassifiedFinding[];
   incompleteReason: string | null;
   errorMessage: string | null;
   findingCounts: Record<string, number>;
@@ -113,7 +118,18 @@ export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMoni
       officeRecordsDateRange: opts.officeRecordsDateRange,
     });
     const failedRules = ruleResults.filter((r) => r.error !== null);
-    const findings = ruleResults.flatMap((r) => r.findings);
+    const rawFindings = ruleResults.flatMap((r) => r.findings);
+
+    // Classification (Phase 4A) happens here, deterministically, BEFORE
+    // persistence and therefore BEFORE any AI step - see
+    // lib/moneymanager/classification/classify.ts's file header for the
+    // anti-fabrication rules this ordering enforces.
+    const runMetadata: RunMetadata = {
+      moneyManagerDataAsOf: reader.dataAsOfDate(),
+      officeRecordsConfigured: (opts.officeRecordsConfig ?? OFFICE_RECORDS_NOT_CONFIGURED).configured,
+      officeRecordsReportingPeriod: opts.officeRecordsDateRange ?? null,
+    };
+    const findings = classifyFindings(rawFindings, runMetadata);
 
     const findingCounts: Record<string, number> = {};
     for (const f of findings) {

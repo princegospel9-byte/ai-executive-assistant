@@ -3,7 +3,7 @@
 // This is what makes the orchestration logic unit-testable without a real
 // Supabase project: tests inject an in-memory fake; production code injects
 // lib/moneymanager/persistence/supabase.ts.
-import type { Finding } from '../rules/types';
+import type { ClassifiedFinding } from '../classification/types';
 
 export type RunStatus = 'running' | 'completed' | 'incomplete' | 'failed';
 
@@ -38,13 +38,13 @@ export interface MonitoringPersistence {
   upsertFindings(
     runId: string,
     userId: string,
-    findings: (Finding & { dedupeKey: string })[]
+    findings: (ClassifiedFinding & { dedupeKey: string })[]
   ): Promise<UpsertFindingsResult>;
   /** Creates mm_alerts rows for findings at/above the alert threshold that
    * don't already have an alert (keyed by the same dedupe_key). */
   createAlertsForFindings(
     userId: string,
-    findings: (Finding & { dedupeKey: string })[]
+    findings: (ClassifiedFinding & { dedupeKey: string })[]
   ): Promise<{ createdCount: number }>;
   /** Records/updates the sync checkpoint for this snapshot identifier so a
    * future run can tell whether the snapshot changed. */

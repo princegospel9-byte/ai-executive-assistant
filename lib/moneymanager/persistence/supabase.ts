@@ -6,7 +6,7 @@
 // by a script or a future n8n workflow) - RLS with auth.uid() has nothing
 // to bind to there. Never used from browser code.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Finding } from '../rules/types';
+import type { ClassifiedFinding } from '../classification/types';
 import type {
   CreateRunInput,
   FinishRunInput,
@@ -60,7 +60,7 @@ export class SupabaseMonitoringPersistence implements MonitoringPersistence {
   async upsertFindings(
     runId: string,
     userId: string,
-    findings: (Finding & { dedupeKey: string })[]
+    findings: (ClassifiedFinding & { dedupeKey: string })[]
   ) {
     if (findings.length === 0) return { insertedCount: 0, updatedCount: 0 };
 
@@ -77,6 +77,8 @@ export class SupabaseMonitoringPersistence implements MonitoringPersistence {
       variance: f.variance,
       business_date: f.businessDate,
       evidence: f.evidence,
+      classification: f.classification,
+      classification_reason: f.classificationReason,
       first_seen_run_id: runId,
       last_seen_run_id: runId,
       last_seen_at: new Date().toISOString(),
@@ -96,7 +98,7 @@ export class SupabaseMonitoringPersistence implements MonitoringPersistence {
     return { insertedCount: rows.length, updatedCount: 0 };
   }
 
-  async createAlertsForFindings(userId: string, findings: (Finding & { dedupeKey: string })[]) {
+  async createAlertsForFindings(userId: string, findings: (ClassifiedFinding & { dedupeKey: string })[]) {
     const alertable = findings.filter((f) => ALERT_SEVERITIES.has(f.severity));
     if (alertable.length === 0) return { createdCount: 0 };
 
