@@ -58,14 +58,32 @@ export function requireCol(index: Map<string, number>, label: string, sheetName:
 
 const DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 
-/** dd/mm/yyyy -> yyyy-mm-dd, or null if it doesn't match. */
+/** dd/mm/yyyy -> yyyy-mm-dd, or null if it doesn't match.
+ *
+ * Validates day 1-31 and month 1-12 before accepting - added after real-
+ * data testing against the actual zone sheets found at least one row
+ * entered as MM/DD/YYYY instead of DD/MM/YYYY (a manual data-entry
+ * inconsistency in the office's own sheet, e.g. "04/25/2026" meaning
+ * April 25 in US format). The reference file's original regex has no such
+ * check, so a mis-formatted date like that silently produced an invalid
+ * calendar string ("2026-25-04", month 25) that would still round-trip
+ * through string comparisons without ever throwing - a real correctness
+ * gap, not just a data-quality issue, since MoneyManager's own comparison
+ * logic offers no signal that anything went wrong. Rejecting it (returning
+ * null, same as any other unparseable text) is strictly safer: it excludes
+ * the bad row from that date's total rather than silently attributing it
+ * to a calendar date that doesn't exist. It does not change behavior for
+ * any well-formed DD/MM/YYYY date. */
 export function ddmmyyyyToIso(text: string): string | null {
   const m = String(text).trim().match(DATE_RE);
-  const dd = m?.[1];
-  const mm = m?.[2];
+  const ddStr = m?.[1];
+  const mmStr = m?.[2];
   const yyyy = m?.[3];
-  if (!dd || !mm || !yyyy) return null;
-  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  if (!ddStr || !mmStr || !yyyy) return null;
+  const dd = Number(ddStr);
+  const mm = Number(mmStr);
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  return `${yyyy}-${mmStr.padStart(2, '0')}-${ddStr.padStart(2, '0')}`;
 }
 
 /** A zone's own "total" column sits right after the COINS column - that's

@@ -29,6 +29,21 @@ describe('ddmmyyyyToIso', () => {
     assert.strictEqual(ddmmyyyyToIso(''), null);
     assert.strictEqual(ddmmyyyyToIso('2026-09-05'), null);
   });
+
+  it('rejects a month or day outside 1-31/1-12 rather than silently producing an invalid calendar date', () => {
+    // Found via real-data testing: Zone E's actual sheet has at least one
+    // row entered as MM/DD/YYYY ("04/25/2026", April 25 in US format)
+    // instead of the expected DD/MM/YYYY - before this fix, that silently
+    // produced "2026-25-04" (month 25, not a real date) instead of being
+    // rejected like any other unparseable text.
+    assert.strictEqual(ddmmyyyyToIso('04/25/2026'), null); // "month" 25
+    assert.strictEqual(ddmmyyyyToIso('32/01/2026'), null); // "day" 32
+    assert.strictEqual(ddmmyyyyToIso('00/01/2026'), null); // day 0
+    assert.strictEqual(ddmmyyyyToIso('01/00/2026'), null); // month 0
+    // Boundary values that ARE valid must still pass.
+    assert.strictEqual(ddmmyyyyToIso('31/12/2026'), '2026-12-31');
+    assert.strictEqual(ddmmyyyyToIso('01/01/2026'), '2026-01-01');
+  });
 });
 
 describe('toMinor / currency parsing', () => {

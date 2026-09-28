@@ -40,13 +40,31 @@ function sleep(ms: number): Promise<void> {
 /** Google occasionally serves an HTML sign-in/interstitial page (often with
  * HTTP 200) even when sharing is genuinely open - retries a few times with
  * increasing pauses before giving up, per the reference file's own
- * confirmed-in-production finding that a single retry isn't always enough. */
+ * confirmed-in-production finding that a single retry isn't always enough.
+ *
+ * Extended beyond the reference file's exact condition after real-data
+ * testing against the actual Master Workbook (an 11.6MB .xlsx): a plain
+ * transport-level failure (`TypeError: terminated`, from undici aborting a
+ * slow/large download) happened live and is NOT an `OfficeRecordsFetchError`
+ * at all, so the reference file's own "only retry the sign-in-page message"
+ * condition would never retry it - one bad network moment on a large file
+ * would report the whole comparison UNAVAILABLE even though a second
+ * attempt succeeds cleanly (confirmed directly: attempt 1 failed with
+ * `terminated`, an unmodified retry immediately after succeeded in 44s).
+ * Any error that ISN'T one of this module's own well-understood, non-
+ * transient signals (a genuine bad-config error we already raise
+ * ourselves) is now retried too - only a real config/permission problem
+ * (explicitly classified) skips straight to failing. */
+function isNonTransientConfigError(err: unknown): boolean {
+  return err instanceof OfficeRecordsFetchError && !/sign-in\/permission page/.test(err.message);
+}
+
 async function withRetry<T>(attempt: () => Promise<T>, delaysMs: number[] = [2000, 5000, 10000]): Promise<T> {
   for (let i = 0; i < delaysMs.length; i++) {
     try {
       return await attempt();
     } catch (err) {
-      if (!(err instanceof OfficeRecordsFetchError) || !/sign-in\/permission page/.test(err.message)) throw err;
+      if (isNonTransientConfigError(err)) throw err;
       await sleep(delaysMs[i]!);
     }
   }
