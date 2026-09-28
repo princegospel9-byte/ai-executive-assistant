@@ -9,14 +9,14 @@
 // a clean bill of health.
 import { findingDedupeKey } from './dedupe';
 import { SnapshotIncompleteError, SnapshotReader } from './client/snapshot';
+import type { MoneyManagerSource } from './client/source';
 import { runAllRules } from './rules';
 import { classifyFindings } from './classification/classify';
 import type { ClassifiedFinding, RunMetadata } from './classification/types';
 import type { MonitoringPersistence } from './persistence/types';
 import { OFFICE_RECORDS_NOT_CONFIGURED, type OfficeRecordsConfigResult } from './office-records/config';
 
-export type RunMonitoringOptions = {
-  snapshotPath: string;
+type CommonRunMonitoringOptions = {
   userId: string;
   persistence: MonitoringPersistence;
   /** Business date this run represents, e.g. '2026-09-22'. Defaults to the
@@ -44,6 +44,29 @@ export type RunMonitoringOptions = {
   officeRecordsDateRange?: { dateFrom: string; dateTo: string };
 };
 
+// Phase 4C: runMonitoring() now accepts EITHER of two ways to get a
+// MoneyManagerSource, sharing one identical rules -> classification ->
+// persistence pipeline below - no branching after the source is obtained.
+// This is deliberately a discriminated union, not two optional fields: it's
+// a compile-time error to pass both or neither, so a caller can never end
+// up in the ambiguous state of "which source did this run actually use?".
+//
+//  - `snapshotPath` (unchanged, exact original signature/behavior): opens a
+//    read-only offline sqlite snapshot via SnapshotReader.open(), exactly as
+//    every existing Phase 3/4A caller and test already does.
+//  - `source` + `sourceIdentifier`: an already-constructed MoneyManagerSource
+//    (e.g. a live LanApiSource, see lib/moneymanager/client/lan-api-source.ts,
+//    or a fake/test double) plus a caller-supplied string identifying it for
+//    the run row's snapshotIdentifier column (there is no file to derive
+//    size/mtime from, so those columns are recorded as 0 / "now" - the same
+//    placeholder convention already used a few lines below for the
+//    "snapshot failed to even open" case).
+export type RunMonitoringOptions = CommonRunMonitoringOptions &
+  (
+    | { snapshotPath: string; source?: undefined; sourceIdentifier?: undefined }
+    | { source: MoneyManagerSource; sourceIdentifier: string; snapshotPath?: undefined }
+  );
+
 export type RunMonitoringResult = {
   runId: string;
   status: 'completed' | 'incomplete' | 'failed';
@@ -61,58 +84,81 @@ export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMoni
   const now = opts.now ?? (() => new Date());
   const businessDate = opts.businessDate ?? now().toISOString().slice(0, 10);
 
-  // Snapshot must open and pass schema validation BEFORE we create the run
-  // row, so we always have a size/mtime identifier to record. If it can't
-  // even open, there is nothing to create a run row against except a
-  // 'failed' one with no snapshot identifier available.
-  let reader: SnapshotReader;
-  try {
-    reader = SnapshotReader.open(opts.snapshotPath);
-  } catch (err) {
-    if (err instanceof SnapshotIncompleteError) {
-      // Best-effort: still create a run row so the failure is visible in
-      // mm_monitoring_runs, using the path itself as the identifier since
-      // we couldn't read file stats.
-      const { runId } = await opts.persistence.createRun({
-        userId: opts.userId,
-        businessDate,
-        snapshotIdentifier: opts.snapshotPath,
-        snapshotFileSizeBytes: 0,
-        snapshotFileModifiedAt: now().toISOString(),
-      });
-      await opts.persistence.finishRun({
-        runId,
-        status: 'incomplete',
-        finishedAt: now().toISOString(),
-        incompleteReason: err.reason,
-        errorMessage: null,
-        findingCounts: {},
-      });
-      return {
-        runId,
-        status: 'incomplete',
-        findings: [],
-        incompleteReason: err.reason,
-        errorMessage: null,
-        findingCounts: {},
-      };
-    }
-    throw err;
-  }
+  // Resolve `opts` (a snapshotPath or a pre-built source) down to a single
+  // `MoneyManagerSource` + identifier pair. Past this point, the rest of
+  // this function has no idea which branch it came from - one pipeline,
+  // no duplicated rule/classification/persistence logic between them.
+  let source: MoneyManagerSource;
+  let snapshotIdentifier: string;
+  let snapshotFileSizeBytes: number;
+  let snapshotFileModifiedAt: string;
 
-  const snapshotIdentifier = `${opts.snapshotPath}#${reader.identifier.fileSizeBytes}b@${reader.identifier.fileModifiedAt}`;
+  if (opts.source) {
+    // Pre-built source (e.g. a live LanApiSource, or a test double) - there
+    // is no underlying file to derive size/mtime from, so those columns get
+    // the same 0 / "now" placeholder already used a few lines below for the
+    // "snapshot failed to even open" case.
+    source = opts.source;
+    snapshotIdentifier = opts.sourceIdentifier;
+    snapshotFileSizeBytes = 0;
+    snapshotFileModifiedAt = now().toISOString();
+  } else {
+    // Snapshot must open and pass schema validation BEFORE we create the
+    // run row, so we always have a size/mtime identifier to record. If it
+    // can't even open, there is nothing to create a run row against except
+    // a 'failed' one with no snapshot identifier available.
+    let reader: SnapshotReader;
+    try {
+      reader = SnapshotReader.open(opts.snapshotPath);
+    } catch (err) {
+      if (err instanceof SnapshotIncompleteError) {
+        // Best-effort: still create a run row so the failure is visible in
+        // mm_monitoring_runs, using the path itself as the identifier since
+        // we couldn't read file stats.
+        const { runId } = await opts.persistence.createRun({
+          userId: opts.userId,
+          businessDate,
+          snapshotIdentifier: opts.snapshotPath,
+          snapshotFileSizeBytes: 0,
+          snapshotFileModifiedAt: now().toISOString(),
+        });
+        await opts.persistence.finishRun({
+          runId,
+          status: 'incomplete',
+          finishedAt: now().toISOString(),
+          incompleteReason: err.reason,
+          errorMessage: null,
+          findingCounts: {},
+        });
+        return {
+          runId,
+          status: 'incomplete',
+          findings: [],
+          incompleteReason: err.reason,
+          errorMessage: null,
+          findingCounts: {},
+        };
+      }
+      throw err;
+    }
+
+    source = reader;
+    snapshotIdentifier = `${opts.snapshotPath}#${reader.identifier.fileSizeBytes}b@${reader.identifier.fileModifiedAt}`;
+    snapshotFileSizeBytes = reader.identifier.fileSizeBytes;
+    snapshotFileModifiedAt = reader.identifier.fileModifiedAt;
+  }
 
   const { runId } = await opts.persistence.createRun({
     userId: opts.userId,
     businessDate,
     snapshotIdentifier,
-    snapshotFileSizeBytes: reader.identifier.fileSizeBytes,
-    snapshotFileModifiedAt: reader.identifier.fileModifiedAt,
+    snapshotFileSizeBytes,
+    snapshotFileModifiedAt,
   });
 
   try {
     const ruleResults = await runAllRules({
-      reader,
+      reader: source,
       officeRecordsConfig: opts.officeRecordsConfig ?? OFFICE_RECORDS_NOT_CONFIGURED,
       fetchImpl: opts.fetchImpl,
       officeRecordsDateRange: opts.officeRecordsDateRange,
@@ -125,7 +171,7 @@ export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMoni
     // lib/moneymanager/classification/classify.ts's file header for the
     // anti-fabrication rules this ordering enforces.
     const runMetadata: RunMetadata = {
-      moneyManagerDataAsOf: await reader.dataAsOfDate(),
+      moneyManagerDataAsOf: await source.dataAsOfDate(),
       officeRecordsConfigured: (opts.officeRecordsConfig ?? OFFICE_RECORDS_NOT_CONFIGURED).configured,
       officeRecordsReportingPeriod: opts.officeRecordsDateRange ?? null,
     };
@@ -143,7 +189,7 @@ export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMoni
     await opts.persistence.recordCheckpoint({
       userId: opts.userId,
       snapshotIdentifier,
-      tableCounts: await reader.tableCounts(),
+      tableCounts: await source.tableCounts(),
       runId,
     });
 
@@ -184,6 +230,6 @@ export async function runMonitoring(opts: RunMonitoringOptions): Promise<RunMoni
       findingCounts: {},
     };
   } finally {
-    reader.close();
+    source.close();
   }
 }
