@@ -174,6 +174,149 @@
       "maxTries": 2,
       "waitBetweenTries": 3000,
       "notes": "Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars to be set - see @BotFather setup."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-notification",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "notifwh01",
+      "name": "Called Externally (Webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        350
+      ],
+      "notes": "Second entry point into this SAME workflow - 'When Called' (Execute Workflow Trigger) is unchanged and still used by every existing internal caller. Requires header x-automation-secret (same N8N_WEBHOOK_SECRET convention as every other webhook in this repo - see Calendar - Create Event.json). Body: { user_id, title, message?, severity?, channel?, related_record_type?, related_record_id? } - the same logical payload 'When Called' already accepts. Converges into the existing Insert Notification -> Needs External Delivery? -> email/Telegram path below, unchanged - this trigger duplicates no delivery logic.",
+      "webhookId": "b6e6b5b0-9b1a-4b7e-9c8b-8a6a2c9a5b7f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst payload = item.body || {};\nconst providedSecret = item.headers?.['x-automation-secret'] || item.headers?.['X-Automation-Secret'];\nconst authOk = providedSecret === $env.N8N_WEBHOOK_SECRET;\nreturn [{\n  json: {\n    user_id: payload.user_id,\n    title: payload.title,\n    message: payload.message || null,\n    severity: payload.severity || 'info',\n    channel: payload.channel || 'in_app',\n    related_record_type: payload.related_record_type || null,\n    related_record_id: payload.related_record_id || null,\n    auth_ok: authOk\n  }\n}];"
+      },
+      "id": "notifwh02",
+      "name": "Normalize & Check Auth (Webhook)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.auth_ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "notifwh03",
+      "name": "Authorized? (Webhook)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: 'Unauthorized' } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "notifwh04",
+      "name": "Respond 401 (Webhook)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $execution.mode }}",
+              "rightValue": "webhook",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "notifwh05",
+      "name": "Triggered Via Webhook?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        350
+      ],
+      "notes": "Branches on $execution.mode ('webhook' vs 'integrated' for an Execute Workflow call) rather than which node fired - reliable regardless of how many upstream trigger paths exist. Fed directly from Insert Notification, BEFORE Needs External Delivery?/Return Result, so responding to the webhook never has to wait for (or run more than once because of) the email/Telegram fan-out below, which already runs Return Result more than once for warning/critical severity - unrelated to and unaffected by this branch."
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $('Insert Notification').first().json;\nconst notification = Array.isArray(row) ? row[0] : row;\nreturn [{ json: { success: true, notification_id: notification.id } }];"
+      },
+      "id": "notifwh06",
+      "name": "Build Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ],
+      "notes": "Same shape as the existing 'Return Result' node, kept as a separate node deliberately - 'Return Result' already has three converging inputs (once per email/Telegram/no-delivery path) and firing an HTTP webhook response from a node that can execute more than once per run would error on the second attempt. This node only ever runs once (directly off Insert Notification, gated by Triggered Via Webhook? above)."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "notifwh07",
+      "name": "Respond 200 (Webhook)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        300
+      ]
     }
   ],
   "connections": {
@@ -193,6 +336,74 @@
         [
           {
             "node": "Needs External Delivery?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Triggered Via Webhook?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Called Externally (Webhook)": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Check Auth (Webhook)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Check Auth (Webhook)": {
+      "main": [
+        [
+          {
+            "node": "Authorized? (Webhook)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorized? (Webhook)": {
+      "main": [
+        [
+          {
+            "node": "Insert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401 (Webhook)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triggered Via Webhook?": {
+      "main": [
+        [
+          {
+            "node": "Build Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Webhook Response": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 (Webhook)",
             "type": "main",
             "index": 0
           }
