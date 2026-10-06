@@ -43,3 +43,7 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# MoneyManager daily-report duplicate-run lock/sent-marker files (scripts/mm-daily-report.ts) -
+# local operational state, never meant to be committed.
+/.mm-daily-report-state/

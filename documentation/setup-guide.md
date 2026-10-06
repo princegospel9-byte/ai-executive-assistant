@@ -4,7 +4,7 @@ This gets the AI Executive Assistant foundation running locally end-to-end: real
 
 ## 1. Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 22+ and npm (the MoneyManager monitoring module's CLI scripts, `scripts/mm-monitor.ts` and `scripts/mm-daily-report.ts`, use Node's built-in `node:sqlite`, which does not exist before Node 22 - see `package.json`'s `engines` field; tested on Node 24.x)
 - A free [Supabase](https://supabase.com) account
 
 ## 2. Create your Supabase project
