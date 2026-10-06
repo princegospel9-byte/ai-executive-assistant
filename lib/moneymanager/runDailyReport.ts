@@ -10,14 +10,14 @@
 // is duplicated, and this file never imports anything n8n-specific. See
 // lib/moneymanager/notify/types.ts for the delivery-side boundary.
 import { runMonitoring } from './run';
+import type { MoneyManagerSource } from './client/source';
 import type { MonitoringPersistence } from './persistence/types';
 import type { OfficeRecordsConfigResult } from './office-records/config';
 import { buildDailyReport, type DailyBusinessReport } from './report/dailyReport';
 import { formatConciseReportMessage, severityForNotification } from './report/formatReportMessage';
 import type { NotificationSender } from './notify/types';
 
-export type RunDailyReportOptions = {
-  snapshotPath: string;
+type CommonRunDailyReportOptions = {
   userId: string;
   persistence: MonitoringPersistence;
   officeRecordsConfig: OfficeRecordsConfigResult;
@@ -30,6 +30,17 @@ export type RunDailyReportOptions = {
   send: boolean;
 };
 
+// Mirrors runMonitoring's own discriminated union (lib/moneymanager/run.ts) -
+// a caller passes EITHER an offline snapshot path OR an already-constructed
+// live MoneyManagerSource (e.g. LanApiSource), never both/neither. Kept as a
+// separate type here (rather than re-exporting runMonitoring's) so this
+// file's public surface documents its own contract independently.
+export type RunDailyReportOptions = CommonRunDailyReportOptions &
+  (
+    | { snapshotPath: string; source?: undefined; sourceIdentifier?: undefined }
+    | { source: MoneyManagerSource; sourceIdentifier: string; snapshotPath?: undefined }
+  );
+
 export type RunDailyReportResult = {
   report: DailyBusinessReport;
   sent: boolean;
@@ -40,13 +51,24 @@ export type RunDailyReportResult = {
 };
 
 export async function runDailyBusinessOperationsReport(opts: RunDailyReportOptions): Promise<RunDailyReportResult> {
-  const result = await runMonitoring({
-    snapshotPath: opts.snapshotPath,
-    userId: opts.userId,
-    persistence: opts.persistence,
-    businessDate: opts.businessDate,
-    officeRecordsConfig: opts.officeRecordsConfig,
-  });
+  const result = await runMonitoring(
+    opts.source
+      ? {
+          source: opts.source,
+          sourceIdentifier: opts.sourceIdentifier,
+          userId: opts.userId,
+          persistence: opts.persistence,
+          businessDate: opts.businessDate,
+          officeRecordsConfig: opts.officeRecordsConfig,
+        }
+      : {
+          snapshotPath: opts.snapshotPath,
+          userId: opts.userId,
+          persistence: opts.persistence,
+          businessDate: opts.businessDate,
+          officeRecordsConfig: opts.officeRecordsConfig,
+        }
+  );
 
   const report = buildDailyReport(result.findings, {
     businessDate: opts.businessDate ?? new Date().toISOString().slice(0, 10),

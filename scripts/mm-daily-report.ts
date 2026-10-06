@@ -10,11 +10,21 @@
 // NotificationSender (lib/moneymanager/notify/types.ts) instead of
 // duplicating this file's logic.
 //
-// Usage:
+// Usage (offline snapshot):
 //   npx tsx scripts/mm-daily-report.ts --snapshot "C:\path\to\snapshot.sqlite3" --dry-run
 //   npx tsx scripts/mm-daily-report.ts --snapshot "C:\path\to\snapshot.sqlite3" --user-id <uuid> [--business-date 2026-09-28] [--no-send]
 //
-// --dry-run: runs the 11 rules + classification straight off the snapshot,
+// Usage (live MoneyManager LAN API, see lib/moneymanager/client/lan-api-source.ts):
+//   npx tsx scripts/mm-daily-report.ts --live-url http://host:port --session-cookie "<cookie>" --dry-run
+//   npx tsx scripts/mm-daily-report.ts --live-url http://host:port --session-cookie "<cookie>" --user-id <uuid> [--no-send]
+// Exactly one of --snapshot / --live-url is required. Live mode has a known,
+// deliberate limitation: about half of the 11 rules depend on
+// customer_ledger_entries, which has no bulk live endpoint - those rules
+// throw LanApiUnsupportedMethodError, which runAllRules turns into a failed
+// rule result (never a silently-empty one), so the run is correctly marked
+// 'incomplete' with the affected rule IDs listed, rather than looking clean.
+//
+// --dry-run: runs the 11 rules + classification straight off the source,
 //   prints the full report to stdout, never touches Supabase or n8n (same
 //   safety convention as scripts/mm-monitor.ts's --dry-run - Office Records
 //   is always reported "not configured" here since there's no credential-
@@ -47,6 +57,7 @@ import { existsSync, mkdirSync, openSync, closeSync, unlinkSync, writeFileSync, 
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { SnapshotIncompleteError, SnapshotReader } from '../lib/moneymanager/client/snapshot';
+import { LanApiSource } from '../lib/moneymanager/client/lan-api-source';
 import { runAllRules } from '../lib/moneymanager/rules';
 import { classifyFindings } from '../lib/moneymanager/classification/classify';
 import { SupabaseMonitoringPersistence } from '../lib/moneymanager/persistence/supabase';
@@ -166,18 +177,32 @@ export function releaseRunLock(userId: string, businessDate: string): void {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const snapshotPath = args['snapshot'] as string | undefined;
+  const liveUrl = args['live-url'] as string | undefined;
+  const sessionCookie = args['session-cookie'] as string | undefined;
   const dryRun = Boolean(args['dry-run']);
   const businessDate = args['business-date'] as string | undefined;
 
-  if (!snapshotPath) {
-    console.error('Usage: mm-daily-report --snapshot <path> [--user-id <uuid>] [--business-date YYYY-MM-DD] [--dry-run] [--no-send]');
+  if (!snapshotPath && !liveUrl) {
+    console.error(
+      'Usage: mm-daily-report (--snapshot <path> | --live-url <url> --session-cookie <cookie>) [--user-id <uuid>] [--business-date YYYY-MM-DD] [--dry-run] [--no-send]'
+    );
+    process.exit(EXIT_CODES.INVALID_USAGE);
+  }
+  if (snapshotPath && liveUrl) {
+    console.error('--snapshot and --live-url are mutually exclusive - pass exactly one.');
+    process.exit(EXIT_CODES.INVALID_USAGE);
+  }
+  if (liveUrl && !sessionCookie) {
+    console.error('--session-cookie is required when --live-url is passed.');
     process.exit(EXIT_CODES.INVALID_USAGE);
   }
 
+  const sourceIdentifier = liveUrl ? `live:${liveUrl}` : `${snapshotPath}`;
+
   if (dryRun) {
-    let reader: SnapshotReader;
+    let reader: SnapshotReader | LanApiSource;
     try {
-      reader = SnapshotReader.open(snapshotPath);
+      reader = liveUrl ? new LanApiSource({ baseUrl: liveUrl, sessionCookie: sessionCookie! }) : SnapshotReader.open(snapshotPath!);
     } catch (err) {
       if (err instanceof SnapshotIncompleteError) {
         console.error(`INCOMPLETE: ${err.reason}`);
@@ -248,15 +273,28 @@ async function main() {
     const persistence = new SupabaseMonitoringPersistence(supabase);
     const officeRecordsConfig = await loadOfficeRecordsConfig(supabase, userId);
 
-    const { report, sent, sendError } = await runDailyBusinessOperationsReport({
-      snapshotPath,
-      userId,
-      persistence,
-      officeRecordsConfig,
-      notificationSender: new N8nWebhookNotificationSender(),
-      businessDate: effectiveBusinessDate,
-      send,
-    });
+    const { report, sent, sendError } = await runDailyBusinessOperationsReport(
+      liveUrl
+        ? {
+            source: new LanApiSource({ baseUrl: liveUrl, sessionCookie: sessionCookie! }),
+            sourceIdentifier,
+            userId,
+            persistence,
+            officeRecordsConfig,
+            notificationSender: new N8nWebhookNotificationSender(),
+            businessDate: effectiveBusinessDate,
+            send,
+          }
+        : {
+            snapshotPath: snapshotPath!,
+            userId,
+            persistence,
+            officeRecordsConfig,
+            notificationSender: new N8nWebhookNotificationSender(),
+            businessDate: effectiveBusinessDate,
+            send,
+          }
+    );
 
     console.log(formatFullReportText(report));
 
