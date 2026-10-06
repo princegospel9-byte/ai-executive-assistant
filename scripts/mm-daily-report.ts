@@ -214,7 +214,20 @@ async function main() {
     const ruleResults = await runAllRules({ reader, officeRecordsConfig: OFFICE_RECORDS_NOT_CONFIGURED });
     const rawFindings = ruleResults.flatMap((r) => r.findings);
     const failedRules = ruleResults.filter((r) => r.error);
-    const moneyManagerDataAsOf = await reader.dataAsOfDate();
+
+    // dataAsOfDate() is a separate source call, not one of the 11 rules -
+    // runAllRules' per-rule try/catch (which produces failedRules above)
+    // does not cover it. Caught here the same way, rather than left to
+    // crash the whole dry-run on e.g. a single broken live endpoint: a
+    // source that can run some/most rules but can't determine an "as of"
+    // date is exactly the 'incomplete' case, not an uncaught exception.
+    let moneyManagerDataAsOf: string | null = null;
+    let dataAsOfDateError: string | null = null;
+    try {
+      moneyManagerDataAsOf = await reader.dataAsOfDate();
+    } catch (err) {
+      dataAsOfDateError = (err as Error).message;
+    }
     reader.close();
 
     const findings = classifyFindings(rawFindings, {
@@ -223,11 +236,17 @@ async function main() {
       officeRecordsReportingPeriod: null,
     });
 
+    const incomplete = failedRules.length > 0 || dataAsOfDateError !== null;
+    const reasons = [
+      ...(dataAsOfDateError ? [`dataAsOfDate (${dataAsOfDateError})`] : []),
+      ...failedRules.map((r) => `${r.ruleId} (${r.error})`),
+    ];
+
     const report = buildDailyReport(findings, {
       businessDate: businessDate ?? moneyManagerDataAsOf ?? new Date().toISOString().slice(0, 10),
       runId: '(dry-run, not persisted)',
-      runStatus: failedRules.length > 0 ? 'incomplete' : 'completed',
-      incompleteReason: failedRules.length > 0 ? `${failedRules.length} rule(s) failed: ${failedRules.map((r) => `${r.ruleId} (${r.error})`).join('; ')}` : null,
+      runStatus: incomplete ? 'incomplete' : 'completed',
+      incompleteReason: incomplete ? `${reasons.length} issue(s): ${reasons.join('; ')}` : null,
       errorMessage: null,
       generatedAt: new Date().toISOString(),
     });
@@ -237,7 +256,7 @@ async function main() {
     console.log(formatConciseReportMessage(report));
     console.log(`\nSeverity for notification: ${severityForNotification(report)}`);
     console.log('\n(--dry-run: nothing was written to Supabase and nothing was sent.)');
-    process.exitCode = decideExitCode({ monitoringOk: failedRules.length === 0, sendRequired: false, sent: false });
+    process.exitCode = decideExitCode({ monitoringOk: !incomplete, sendRequired: false, sent: false });
     return;
   }
 
