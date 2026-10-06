@@ -45,6 +45,18 @@ export type LanApiSourceConfig = {
 
 type PagedResult<T> = { items: T[]; total: number };
 
+// The live server's GET routes take their filters/pagination as a single
+// JSON-encoded `?filters=` query param (see mm-server-actual's
+// route-helpers.ts parseFilters()/web-client/api/http.ts withFilters()),
+// NOT as flat query params - verified against the real deployed server:
+// GET /api/ledger?limit=1&offset=0 500s (filters.limit/offset end up
+// undefined server-side, breaking the SQL bind), while
+// ?filters=%7B%22limit%22%3A1... succeeds. Every call this client makes
+// that carries filters/pagination must be wrapped through this helper.
+function filtersQuery(filters: Record<string, unknown>): { filters: string } {
+  return { filters: JSON.stringify(filters) };
+}
+
 function isPagedResult(data: unknown): data is PagedResult<unknown> {
   return (
     typeof data === 'object' &&
@@ -74,7 +86,7 @@ export class LanApiSource implements MoneyManagerSource {
     for (;;) {
       const page = await this.http.get<PagedResult<T>>(
         path,
-        { ...query, limit: this.pageSize, offset },
+        filtersQuery({ ...query, limit: this.pageSize, offset }),
         (data: unknown): data is PagedResult<T> => isPagedResult(data)
       );
       items.push(...(page.items as T[]));
@@ -247,10 +259,10 @@ export class LanApiSource implements MoneyManagerSource {
   }
 
   async ledgerTotals(): Promise<{ drMinor: number; crMinor: number }> {
-    const page = await this.http.get<{ totalDrMinor: number; totalCrMinor: number }>('/api/ledger', {
-      limit: 1,
-      offset: 0,
-    });
+    const page = await this.http.get<{ totalDrMinor: number; totalCrMinor: number }>(
+      '/api/ledger',
+      filtersQuery({ limit: 1, offset: 0 })
+    );
     return { drMinor: page.totalDrMinor, crMinor: page.totalCrMinor };
   }
 
@@ -334,9 +346,9 @@ export class LanApiSource implements MoneyManagerSource {
     const [branches, glAccounts, loansPage, investmentsPage, ledgerPage] = await Promise.all([
       this.branches(),
       this.glAccounts(),
-      this.http.get<{ total: number }>('/api/loans', { limit: 1, offset: 0 }),
-      this.http.get<{ total: number }>('/api/investments', { limit: 1, offset: 0 }),
-      this.http.get<{ total: number }>('/api/ledger', { limit: 1, offset: 0 }),
+      this.http.get<{ total: number }>('/api/loans', filtersQuery({ limit: 1, offset: 0 })),
+      this.http.get<{ total: number }>('/api/investments', filtersQuery({ limit: 1, offset: 0 })),
+      this.http.get<{ total: number }>('/api/ledger', filtersQuery({ limit: 1, offset: 0 })),
     ]);
     return {
       branches: branches.length,
